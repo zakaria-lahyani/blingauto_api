@@ -352,19 +352,78 @@ class TestChangeUserRole:
         assert response.status_code == 422
 
     def test_change_user_role_manager_authorized(self, client, manager_user, registered_user, api_helper):
-        """Test if manager can change user roles (depending on business rules)"""
+        """Test if manager can change user roles to washer/client only"""
         headers = manager_user["headers"]
         user_id = registered_user["user_data"]["id"]
         
+        # Manager should be able to change to washer role
         role_data = {
             "role": "washer"
         }
         
         response = client.put(f"/auth/users/{user_id}/role", json=role_data, headers=headers)
         
-        # Depending on business rules, manager might or might not be allowed
-        # This test documents the expected behavior
-        assert response.status_code in [200, 403]
+        # Manager should be able to assign washer role
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["role"] == "washer"
+        
+    def test_manager_cannot_promote_to_admin(self, client, manager_user, registered_user, api_helper):
+        """Test that manager cannot promote users to admin role"""
+        headers = manager_user["headers"]
+        user_id = registered_user["user_data"]["id"]
+        
+        # Manager tries to promote to admin - should fail
+        role_data = {
+            "role": "admin"
+        }
+        
+        response = client.put(f"/auth/users/{user_id}/role", json=role_data, headers=headers)
+        
+        # Manager should NOT be able to promote to admin
+        assert response.status_code == 403
+        response_data = response.json()
+        api_helper.assert_error_response(response_data)
+        # Check for appropriate error message
+        detail = response_data.get("detail", "").lower()
+        assert "cannot assign" in detail or "forbidden" in detail or "not allowed" in detail
+        
+    def test_manager_cannot_promote_to_manager(self, client, manager_user, registered_user, api_helper):
+        """Test that manager cannot promote users to manager role"""
+        headers = manager_user["headers"]
+        user_id = registered_user["user_data"]["id"]
+        
+        # Manager tries to promote to manager - should fail
+        role_data = {
+            "role": "manager"
+        }
+        
+        response = client.put(f"/auth/users/{user_id}/role", json=role_data, headers=headers)
+        
+        # Manager should NOT be able to promote to manager
+        assert response.status_code == 403
+        response_data = response.json()
+        api_helper.assert_error_response(response_data)
+        # Check for appropriate error message
+        detail = response_data.get("detail", "").lower()
+        assert "cannot assign" in detail or "forbidden" in detail or "not allowed" in detail
+        
+    def test_only_admin_can_promote_to_admin(self, client, admin_user, registered_user, api_helper):
+        """Test that only admin can promote users to admin role"""
+        headers = admin_user["headers"]
+        user_id = registered_user["user_data"]["id"]
+        
+        # Admin should be able to promote to admin
+        role_data = {
+            "role": "admin"
+        }
+        
+        response = client.put(f"/auth/users/{user_id}/role", json=role_data, headers=headers)
+        
+        # Admin should be able to promote to admin
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["role"] == "admin"
 
 
 @pytest.mark.rbac

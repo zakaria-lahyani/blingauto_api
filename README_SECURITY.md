@@ -1,3 +1,4 @@
+
 # Security Implementation Guide
 
 This document provides a comprehensive overview of the security improvements implemented in the BlingAuto Car Wash API and how to test them.

@@ -30,7 +30,23 @@ current_dir = Path(__file__).parent
 env_file = current_dir / ".env"
 print(f"[DEBUG] Loading env from: {env_file}")
 print(f"[DEBUG] Env file exists: {env_file.exists()}")
-load_dotenv(env_file)
+
+# Force override system environment with .env file values
+load_dotenv(env_file, override=True)
+
+# Explicitly set critical environment variables from .env to override system defaults
+if env_file.exists():
+    with open(env_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                if key == 'AUTH_JWT_SECRET_KEY':
+                    os.environ[key] = value
+                    print(f"[DEBUG] Override {key} from .env file")
+print(f"[DEBUG] Current AUTH_JWT_SECRET_KEY: {os.environ.get('AUTH_JWT_SECRET_KEY', 'NOT SET')[:20]}...")
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))

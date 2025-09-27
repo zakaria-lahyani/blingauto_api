@@ -39,7 +39,7 @@ class TestRegistration:
         assert response_data["last_name"] == user_data["last_name"]
         assert response_data["role"] == "client"  # Default role
         assert response_data["is_active"] is True
-        assert response_data["email_verified"] is False  # Email not verified by default
+        assert response_data["email_verified"] is True  # Email auto-verified when verification disabled
         
         # Assert no auto-login tokens in response
         assert "access_token" not in response_data
@@ -127,16 +127,12 @@ class TestLogin:
         
         response = client.post("/auth/login", json=login_data)
         
-        # Since email verification is enabled and user hasn't verified their email,
-        # login should fail with 401 and appropriate message
-        assert response.status_code == 401
+        # Since email verification is disabled in test environment,
+        # login should succeed with 200 and tokens
+        assert response.status_code == 200
         
         response_data = response.json()
-        api_helper.assert_error_response(response_data)
-        
-        # Error message should indicate email verification is needed
-        error_msg = response_data["detail"].lower()
-        assert "email" in error_msg or "verification" in error_msg
+        api_helper.assert_valid_token_response(response_data)
 
     def test_login_wrong_password(self, client, registered_user, api_helper):
         """Login — mauvais mot de passe

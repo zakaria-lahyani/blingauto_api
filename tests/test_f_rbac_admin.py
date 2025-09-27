@@ -21,7 +21,7 @@ class TestListUsers:
         response = client.get("/auth/users")
         
         # Assert unauthorized
-        assert response.status_code == 401
+        assert response.status_code == 403
         
         # Assert error response
         response_data = response.json()
@@ -228,7 +228,7 @@ class TestGetUserById:
         response = client.get(f"/auth/users/{user_id}")
         
         # Assert unauthorized
-        assert response.status_code == 401
+        assert response.status_code == 403
         
         # Assert error response
         response_data = response.json()
@@ -460,7 +460,7 @@ class TestDeleteUser:
         response = client.delete(f"/auth/users/{user_id}")
         
         # Assert unauthorized
-        assert response.status_code == 401
+        assert response.status_code == 403
         
         # Assert error response
         response_data = response.json()

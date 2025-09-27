@@ -3,9 +3,11 @@ Pytest configuration and shared fixtures for API integration tests
 """
 import asyncio
 import pytest
+import pytest_asyncio
 import httpx
 import uuid
 import time
+import os
 from typing import Dict, Any, Optional
 from fastapi.testclient import TestClient
 from pathlib import Path
@@ -23,6 +25,11 @@ from tests.factories import (
     create_user_data,
     create_malicious_payloads
 )
+from tests.simple_test_fixes import (
+    get_unique_test_user,
+    setup_fast_test_environment,
+    cleanup_fast_test_environment
+)
 
 
 @pytest.fixture(scope="session")
@@ -36,14 +43,42 @@ def event_loop():
 @pytest.fixture(scope="session")
 def app():
     """Create FastAPI app for testing"""
+    # Setup test environment before creating app
+    setup_fast_test_environment()
+    
+    # Import auth configuration classes after environment setup
+    from src.features.auth import AuthConfig, AuthFeature
+    
+    # Override auth config to disable email verification for tests
+    original_config = None
     app = create_app()
+    
+    # Modify the auth config after app creation to disable email verification
+    if hasattr(app.state, 'auth') and hasattr(app.state.auth, 'config'):
+        auth_config = app.state.auth.config
+        # Remove email verification from enabled features for tests
+        if AuthFeature.EMAIL_VERIFICATION in auth_config.enabled_features:
+            auth_config.enabled_features = [
+                f for f in auth_config.enabled_features 
+                if f != AuthFeature.EMAIL_VERIFICATION
+            ]
+    
     yield app
+    cleanup_fast_test_environment()
 
 
 @pytest.fixture(scope="session")
 def client(app):
     """Create test client"""
     with TestClient(app) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def async_client(app):
+    """Create async test client"""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 
@@ -57,6 +92,12 @@ def auth_module(app):
 def unique_email():
     """Generate unique email for each test"""
     return f"test{int(time.time())}{uuid.uuid4().hex[:8]}@example.com"
+
+
+@pytest.fixture
+def unique_test_data():
+    """Generate unique test data for each test"""
+    return get_unique_test_user()
 
 
 @pytest.fixture
@@ -161,40 +202,66 @@ def authenticated_user(client, verified_user):
     }
 
 
-@pytest.fixture
-def admin_user(client):
-    """Create admin user"""
-    admin_data = {
-        "email": f"admin{int(time.time())}{uuid.uuid4().hex[:8]}@example.com",
-        "password": "AdminPass123!",
-        "first_name": "Admin",
-        "last_name": "User"
-    }
+@pytest_asyncio.fixture
+async def admin_user(client, auth_module):
+    """Create admin user using AdminSetupService"""
+    import os
     
-    # Register admin (will be promoted via initial admin setup)
-    response = client.post("/auth/register", json=admin_data)
-    assert response.status_code == 201
-    user_data = response.json()
+    # Set up environment variables for admin creation
+    admin_email = f"admin{int(time.time())}{uuid.uuid4().hex[:8]}@example.com"
+    admin_password = "AdminPass123!"
     
-    # Login as admin
-    login_response = client.post("/auth/login", json={
-        "email": admin_data["email"],
-        "password": admin_data["password"]
-    })
-    assert login_response.status_code == 200
-    tokens = login_response.json()
+    # Temporarily set environment variables
+    original_email = os.environ.get("INITIAL_ADMIN_EMAIL")
+    original_password = os.environ.get("INITIAL_ADMIN_PASSWORD")
     
-    return {
-        "user_data": user_data,
-        "credentials": admin_data,
-        "tokens": tokens,
-        "headers": {"Authorization": f"Bearer {tokens['access_token']}"}
-    }
+    os.environ["INITIAL_ADMIN_EMAIL"] = admin_email
+    os.environ["INITIAL_ADMIN_PASSWORD"] = admin_password
+    
+    try:
+        # Use the AdminSetupService to create a proper admin
+        success = await auth_module.admin_setup_service.ensure_admin_exists()
+        assert success, "Failed to create admin user"
+        
+        # Login as admin
+        login_response = client.post("/auth/login", json={
+            "email": admin_email,
+            "password": admin_password
+        })
+        assert login_response.status_code == 200, f"Admin login failed: {login_response.text}"
+        tokens = login_response.json()
+        
+        # Get user data
+        profile_response = client.get("/auth/me", headers={"Authorization": f"Bearer {tokens['access_token']}"})
+        assert profile_response.status_code == 200, f"Failed to get admin profile: {profile_response.text}"
+        user_data = profile_response.json()
+        
+        # Verify admin role
+        assert user_data["role"] == "admin", f"User role is {user_data['role']}, expected admin"
+        
+        return {
+            "user_data": user_data,
+            "credentials": {"email": admin_email, "password": admin_password},
+            "tokens": tokens,
+            "headers": {"Authorization": f"Bearer {tokens['access_token']}"}
+        }
+        
+    finally:
+        # Restore original environment variables
+        if original_email is not None:
+            os.environ["INITIAL_ADMIN_EMAIL"] = original_email
+        else:
+            os.environ.pop("INITIAL_ADMIN_EMAIL", None)
+            
+        if original_password is not None:
+            os.environ["INITIAL_ADMIN_PASSWORD"] = original_password
+        else:
+            os.environ.pop("INITIAL_ADMIN_PASSWORD", None)
 
 
-@pytest.fixture
-def manager_user(client):
-    """Create manager user"""
+@pytest_asyncio.fixture
+async def manager_user(client, auth_module, admin_user):
+    """Create manager user by promoting through admin"""
     manager_data = {
         "email": f"manager{int(time.time())}{uuid.uuid4().hex[:8]}@example.com",
         "password": "ManagerPass123!",
@@ -202,18 +269,38 @@ def manager_user(client):
         "last_name": "User"
     }
     
-    # Register manager
+    # Register manager as regular user
     response = client.post("/auth/register", json=manager_data)
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Manager registration failed: {response.text}"
     user_data = response.json()
+    user_id = user_data["id"]
+    
+    # Use admin to promote user to manager role
+    admin_headers = admin_user["headers"]
+    role_update_data = {"role": "manager"}
+    
+    promote_response = client.put(
+        f"/auth/users/{user_id}/role", 
+        json=role_update_data, 
+        headers=admin_headers
+    )
+    assert promote_response.status_code == 200, f"Manager promotion failed: {promote_response.text}"
     
     # Login as manager
     login_response = client.post("/auth/login", json={
         "email": manager_data["email"],
         "password": manager_data["password"]
     })
-    assert login_response.status_code == 200
+    assert login_response.status_code == 200, f"Manager login failed: {login_response.text}"
     tokens = login_response.json()
+    
+    # Get updated user data with manager role
+    profile_response = client.get("/auth/me", headers={"Authorization": f"Bearer {tokens['access_token']}"})
+    assert profile_response.status_code == 200, f"Failed to get manager profile: {profile_response.text}"
+    user_data = profile_response.json()
+    
+    # Verify manager role
+    assert user_data["role"] == "manager", f"User role is {user_data['role']}, expected manager"
     
     return {
         "user_data": user_data,

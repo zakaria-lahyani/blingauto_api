@@ -5,6 +5,7 @@
 
 # Production requirements (default)
 -r requirements-prod.txt
+-r requirements-test.txt
 
 # For development and testing, use:
 # pip install -r requirements-dev.txt  (includes everything)

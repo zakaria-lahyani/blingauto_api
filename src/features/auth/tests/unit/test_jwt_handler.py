@@ -13,7 +13,7 @@ from src.features.auth.config import AuthConfig
 def jwt_config():
     """JWT configuration for testing"""
     return AuthConfig(
-        jwt_secret_key="test-secret-key-for-jwt-testing",
+        jwt_secret_key="Dev_Test_Secret_K3y_F0r_JWT_T3st1ng_M1n1mum_Ent40py_V4l1d4t10n_P4ss_9$2z",
         jwt_algorithm="HS256",
         access_token_expire_minutes=30,
         refresh_token_expire_days=7

@@ -1,0 +1,28 @@
+# =============================================================================
+# DEVELOPMENT REQUIREMENTS - CAR WASH API
+# Dependencies for local development
+# =============================================================================
+
+# Include test requirements (which includes production)
+-r requirements-test.txt
+
+# Development server and hot reload
+watchfiles>=0.21.0
+
+# Code formatting and linting
+black>=23.12.0
+isort>=5.13.0
+flake8>=7.0.0
+mypy>=1.8.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+
+# Database tools
+alembic>=1.13.1  # Database migrations
+
+# Development utilities
+ipython>=8.18.0  # Better REPL
+rich>=13.7.0  # Better terminal output
+typer>=0.9.0  # CLI tools

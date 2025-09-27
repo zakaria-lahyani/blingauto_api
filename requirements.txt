@@ -1,0 +1,12 @@
+# =============================================================================
+# CAR WASH API - MAIN REQUIREMENTS
+# This file points to production requirements by default
+# =============================================================================
+
+# Production requirements (default)
+-r requirements-prod.txt
+
+# For development and testing, use:
+# pip install -r requirements-dev.txt  (includes everything)
+# pip install -r requirements-test.txt (production + testing)
+# pip install -r requirements-prod.txt (production only)

@@ -14,6 +14,7 @@ from src.shared.config import GlobalConfig
 from src.shared.middleware.security_headers import SecurityHeadersMiddleware
 from src.shared.middleware.request_logging import RequestLoggingMiddleware
 from src.shared.middleware.error_handling import GlobalErrorHandlingMiddleware
+from src.shared.middleware.security_logging import SecurityLoggingMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +49,16 @@ def setup_global_middleware(app: FastAPI, config: GlobalConfig) -> None:
     # 3. Trusted Host Middleware (production only)
     _setup_trusted_host_middleware(app, config)
     
-    # 4. Request Logging Middleware
+    # 4. Security Event Logging Middleware
+    _setup_security_logging_middleware(app, config)
+    
+    # 5. Request Logging Middleware
     _setup_request_logging_middleware(app, config)
     
-    # 5. Compression Middleware
+    # 6. Compression Middleware
     _setup_compression_middleware(app, config)
     
-    # 6. Global Error Handling Middleware (LAST - catches everything)
+    # 7. Global Error Handling Middleware (LAST - catches everything)
     _setup_error_handling_middleware(app, config)
     
     logger.info("Global middleware setup completed")
@@ -125,6 +129,22 @@ def _setup_compression_middleware(app: FastAPI, config: GlobalConfig) -> None:
         logger.info(f"GZIP compression middleware configured (min size: {config.compression.gzip_minimum_size})")
     else:
         logger.info("GZIP compression middleware skipped (disabled)")
+
+
+def _setup_security_logging_middleware(app: FastAPI, config: GlobalConfig) -> None:
+    """Setup security event logging middleware"""
+    
+    # Enable security logging if specified in config
+    enable_security_logging = getattr(config, 'enable_security_logging', True)
+    
+    if enable_security_logging:
+        app.add_middleware(
+            SecurityLoggingMiddleware,
+            enable_detailed_logging=config.debug
+        )
+        logger.info("Security event logging middleware configured")
+    else:
+        logger.info("Security event logging middleware skipped (disabled)")
 
 
 def _setup_error_handling_middleware(app: FastAPI, config: GlobalConfig) -> None:

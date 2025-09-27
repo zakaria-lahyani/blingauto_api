@@ -63,14 +63,30 @@ class AuthConfig(BaseSettings):
     max_lockout_minutes: int = Field(default=60)
     lockout_multiplier: int = Field(default=2)
     
-    # Rate limiting
+    # Rate limiting configuration
     enable_rate_limiting: bool = Field(default=True)
     
-    # Role-based rate limits (requests per minute)
-    admin_rate_limit: int = Field(default=200)
-    manager_rate_limit: int = Field(default=100)
-    washer_rate_limit: int = Field(default=60)
-    client_rate_limit: int = Field(default=30)
+    # Global rate limits (requests per minute)
+    global_rate_limit: int = Field(default=1000, description="Global rate limit for all requests")
+    
+    # Role-based rate limits (requests per minute) - Production-optimized
+    admin_rate_limit: int = Field(default=120, description="Admin role rate limit per minute")
+    manager_rate_limit: int = Field(default=80, description="Manager role rate limit per minute") 
+    washer_rate_limit: int = Field(default=40, description="Washer role rate limit per minute")
+    client_rate_limit: int = Field(default=20, description="Client role rate limit per minute")
+    
+    # Anonymous/unauthenticated rate limits
+    anonymous_rate_limit: int = Field(default=10, description="Unauthenticated user rate limit per minute")
+    
+    # Endpoint-specific rate limits (requests per minute)
+    login_rate_limit: int = Field(default=5, description="Login attempts per minute")
+    register_rate_limit: int = Field(default=3, description="Registration attempts per minute")
+    password_reset_rate_limit: int = Field(default=2, description="Password reset requests per minute")
+    email_verification_rate_limit: int = Field(default=3, description="Email verification requests per minute")
+    
+    # Burst limits (allow short bursts above the rate limit)
+    enable_burst_limits: bool = Field(default=True, description="Enable burst limit tolerance")
+    burst_multiplier: float = Field(default=1.5, description="Burst multiplier for short-term spikes")
     
     # Security logging
     enable_security_logging: bool = Field(default=True)
@@ -113,21 +129,71 @@ class AuthConfig(BaseSettings):
     
     @validator('jwt_secret_key')
     def validate_jwt_secret(cls, v):
-        """Validate JWT secret key strength"""
-        if v and len(v) < 32:
+        """Validate JWT secret key strength with entropy checks"""
+        import math
+        import re
+        
+        if not v:
+            return v
+            
+        if len(v) < 32:
             raise ValueError("JWT secret key must be at least 32 characters long")
         
         # Check for weak default values
         weak_secrets = [
             "your-super-secret-jwt-key-change-this-in-production",
+            "dev-secret-key-change-in-production",
             "secret",
             "password", 
             "123456",
-            "change-me"
+            "change-me",
+            "test-secret",
+            "development-secret"
         ]
         
-        if v and v.lower() in [s.lower() for s in weak_secrets]:
+        if v.lower() in [s.lower() for s in weak_secrets]:
             raise ValueError("JWT secret key appears to be a default/weak value. Please use a strong, unique secret.")
+        
+        # Check entropy (randomness)
+        def calculate_entropy(text):
+            """Calculate Shannon entropy of text"""
+            if not text:
+                return 0
+            char_counts = {}
+            for char in text:
+                char_counts[char] = char_counts.get(char, 0) + 1
+            
+            length = len(text)
+            entropy = 0
+            for count in char_counts.values():
+                probability = count / length
+                entropy -= probability * math.log2(probability)
+            
+            return entropy
+        
+        entropy = calculate_entropy(v)
+        min_entropy = 4.0  # Minimum bits of entropy per character
+        
+        if entropy < min_entropy:
+            raise ValueError(f"JWT secret key has low entropy ({entropy:.2f} bits). Use a more random secret (minimum {min_entropy} bits).")
+        
+        # Check character diversity
+        has_upper = bool(re.search(r'[A-Z]', v))
+        has_lower = bool(re.search(r'[a-z]', v))
+        has_digit = bool(re.search(r'[0-9]', v))
+        has_special = bool(re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>/?]', v))
+        
+        diversity_count = sum([has_upper, has_lower, has_digit, has_special])
+        
+        if diversity_count < 3:
+            raise ValueError("JWT secret key should contain at least 3 of: uppercase, lowercase, digits, special characters")
+        
+        # Check for common patterns
+        if re.search(r'(.)\1{3,}', v):  # 4+ repeated characters
+            raise ValueError("JWT secret key contains too many repeated characters")
+        
+        if re.search(r'(012|123|234|345|456|567|678|789|890|abc|def|ghi)', v.lower()):
+            raise ValueError("JWT secret key contains sequential patterns")
         
         return v
     
@@ -206,6 +272,42 @@ class AuthConfig(BaseSettings):
             "client": self.client_rate_limit
         }
         return role_limits.get(role.lower(), self.client_rate_limit)
+    
+    def get_endpoint_rate_limit(self, endpoint: str) -> int:
+        """Get rate limit for a specific endpoint"""
+        endpoint_limits = {
+            "login": self.login_rate_limit,
+            "register": self.register_rate_limit,
+            "password_reset": self.password_reset_rate_limit,
+            "email_verification": self.email_verification_rate_limit
+        }
+        return endpoint_limits.get(endpoint.lower(), self.anonymous_rate_limit)
+    
+    def get_effective_rate_limit(self, role: Optional[str] = None, endpoint: Optional[str] = None) -> int:
+        """Get the most restrictive rate limit that applies"""
+        limits = []
+        
+        # Add global limit
+        limits.append(self.global_rate_limit)
+        
+        # Add role-based limit
+        if role:
+            limits.append(self.get_role_rate_limit(role))
+        else:
+            limits.append(self.anonymous_rate_limit)
+        
+        # Add endpoint-specific limit
+        if endpoint:
+            limits.append(self.get_endpoint_rate_limit(endpoint))
+        
+        # Return the most restrictive (lowest) limit
+        return min(limits)
+    
+    def get_burst_limit(self, base_limit: int) -> int:
+        """Calculate burst limit for a given base rate limit"""
+        if not self.enable_burst_limits:
+            return base_limit
+        return int(base_limit * self.burst_multiplier)
     
     def is_production_ready(self) -> tuple[bool, List[str]]:
         """Check if configuration is production ready"""

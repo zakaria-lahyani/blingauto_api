@@ -1,12 +1,13 @@
 """
 Auth API schemas
 """
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
 
 from src.features.auth.domain.enums import AuthRole
+from src.shared.utils.validation import InputValidator
 
 
 class UserRegister(BaseModel):
@@ -16,12 +17,36 @@ class UserRegister(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50)
     phone: Optional[str] = Field(None, max_length=20)
+    
+    @validator('email')
+    def validate_email_security(cls, v):
+        return InputValidator.validate_email(v)
+    
+    @validator('password')
+    def validate_password_strength(cls, v):
+        return InputValidator.validate_password(v)
+    
+    @validator('first_name')
+    def validate_first_name_security(cls, v):
+        return InputValidator.validate_name(v, "First name")
+    
+    @validator('last_name')
+    def validate_last_name_security(cls, v):
+        return InputValidator.validate_name(v, "Last name")
+    
+    @validator('phone')
+    def validate_phone_security(cls, v):
+        return InputValidator.validate_phone(v)
 
 
 class UserLogin(BaseModel):
     """User login schema"""
     email: EmailStr
     password: str
+    
+    @validator('email')
+    def validate_email_security(cls, v):
+        return InputValidator.validate_email(v)
 
 
 class TokenResponse(BaseModel):

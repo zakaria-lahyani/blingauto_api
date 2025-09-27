@@ -120,15 +120,30 @@ class AuthUser:
         self.updated_at = datetime.utcnow()
     
     def add_refresh_token(self, token_info: Dict[str, Any]):
-        """Add refresh token to user"""
-        self.refresh_tokens.append(token_info)
+        """Add refresh token to user (encrypted before storage)"""
+        from src.shared.services.encryption_service import encrypt_if_available
+        
+        # Encrypt sensitive token data before storing
+        encrypted_token_info = token_info.copy()
+        if 'token_hash' in encrypted_token_info:
+            encrypted_token_info['token_hash'] = encrypt_if_available(encrypted_token_info['token_hash'])
+        if 'family_id' in encrypted_token_info:
+            encrypted_token_info['family_id'] = encrypt_if_available(encrypted_token_info['family_id'])
+        
+        self.refresh_tokens.append(encrypted_token_info)
         self.updated_at = datetime.utcnow()
     
     def remove_refresh_token(self, token_hash: str):
         """Remove specific refresh token"""
+        from src.shared.services.encryption_service import encrypt_if_available, decrypt_if_available
+        
+        # Encrypt the token hash to match stored format
+        encrypted_token_hash = encrypt_if_available(token_hash)
+        
         self.refresh_tokens = [
             token for token in self.refresh_tokens
-            if token.get('token_hash') != token_hash
+            if decrypt_if_available(token.get('token_hash', '')) != token_hash and 
+               token.get('token_hash') != encrypted_token_hash
         ]
         self.updated_at = datetime.utcnow()
     
@@ -136,6 +151,21 @@ class AuthUser:
         """Clear all refresh tokens"""
         self.refresh_tokens = []
         self.updated_at = datetime.utcnow()
+    
+    def get_decrypted_refresh_tokens(self) -> List[Dict[str, Any]]:
+        """Get refresh tokens with decrypted sensitive data"""
+        from src.shared.services.encryption_service import decrypt_if_available
+        
+        decrypted_tokens = []
+        for token in self.refresh_tokens:
+            decrypted_token = token.copy()
+            if 'token_hash' in decrypted_token:
+                decrypted_token['token_hash'] = decrypt_if_available(decrypted_token['token_hash'])
+            if 'family_id' in decrypted_token:
+                decrypted_token['family_id'] = decrypt_if_available(decrypted_token['family_id'])
+            decrypted_tokens.append(decrypted_token)
+        
+        return decrypted_tokens
     
     @property
     def is_locked(self) -> bool:

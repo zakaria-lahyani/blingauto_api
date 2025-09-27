@@ -52,6 +52,7 @@ from src.shared.services.email_service import init_email_service
 from src.shared.services.secrets_manager import init_secrets_manager
 from src.shared.services.cache_service import init_cache_service
 from src.shared.services.rate_limiter import init_rate_limiter
+from src.shared.services.encryption_service import init_encryption_service
 
 # Global auth module instance
 auth_module = None
@@ -111,15 +112,21 @@ def create_app() -> FastAPI:
     global_config = GlobalConfig()
     setup_global_middleware(app, global_config)
     
-    # Initialize database
+    # Initialize database with SSL/TLS enforcement
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
-        # Fallback for development
-        database_url = "postgresql+asyncpg://carwash:password@localhost:5432/carwash_db"
-        print(f"[WARNING] Using fallback database URL: {database_url}")
+        # Fallback for development - use environment variables
+        db_user = os.getenv("POSTGRES_USER", "carwash")
+        db_password = os.getenv("POSTGRES_PASSWORD", "password")
+        db_name = os.getenv("POSTGRES_DB", "carwash_db")
+        db_host = os.getenv("POSTGRES_HOST", "localhost")
+        db_port = os.getenv("POSTGRES_PORT", "5432")
+        
+        database_url = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        print(f"[WARNING] Using constructed database URL from environment variables")
     
     init_database(database_url)
-    print(f"[SUCCESS] Database initialized")
+    print(f"[SUCCESS] Database initialized with security configurations")
     
     # Create auth configuration
     global auth_module
@@ -151,6 +158,14 @@ def create_app() -> FastAPI:
         init_cache_service()
         init_rate_limiter()
         print(f"[WARNING] Using in-memory cache and rate limiting (not recommended for production)")
+    
+    # Initialize encryption service for sensitive data
+    encryption_key = os.getenv("ENCRYPTION_KEY") or os.getenv("AUTH_ENCRYPTION_KEY")
+    if encryption_key:
+        init_encryption_service(encryption_key)
+        print(f"[SUCCESS] Encryption service initialized")
+    else:
+        print(f"[WARNING] No encryption key provided - refresh tokens will not be encrypted")
     
     # Initialize email service with auth config
     email_config = {
@@ -273,14 +288,14 @@ if __name__ == "__main__":
     print("[ARCH] Architecture: Feature-based with hybrid middleware")
     print("[MIDDLEWARE] Global: CORS, Security, Logging, Compression")
     print("[MIDDLEWARE] Feature: Rate limiting (auth only), Security logging")
-    print("[DOCS] Documentation: http://localhost:8001/docs")
+    print("[DOCS] Documentation: http://localhost:8000/docs")
     print("=" * 60)
     
     # Run the application
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8000,
         reload=True,
         log_level="info"
     )

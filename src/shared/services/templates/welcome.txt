@@ -1,0 +1,26 @@
+🚗 {{ app_name }} - Welcome!
+
+Hello {{ first_name }},
+
+🎉 Congratulations! Your email has been verified and your {{ app_name }} account is now active. We're excited to have you join our community!
+
+START USING {{ app_name }}:
+{{ login_link }}
+
+WHAT YOU CAN DO NOW:
+✅ Book car wash appointments online
+✅ Choose from various service packages  
+✅ Track your service history
+✅ Manage your profile and preferences
+✅ Receive notifications about your bookings
+✅ Access exclusive member discounts
+
+Our team is committed to providing you with the best car wash experience. If you have any questions or need assistance getting started, don't hesitate to reach out to our support team.
+
+Thank you for choosing {{ app_name }}. We look forward to serving you!
+
+--
+This email was sent by {{ app_name }}.
+If you have any questions, please contact us at {{ support_email }}.
+
+Note: This is an automated email. Please do not reply to this message.

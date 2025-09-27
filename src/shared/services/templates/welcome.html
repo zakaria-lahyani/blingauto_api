@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Car Wash Service</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #059669;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .login-button {
+            display: inline-block;
+            background-color: #059669;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .login-button:hover {
+            background-color: #047857;
+        }
+        .features {
+            background-color: #f0fdf4;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 5px 0;
+        }
+        .feature-list li:before {
+            content: "✅ ";
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🚗 {{ app_name }}</div>
+            <h1 class="title">Welcome to {{ app_name }}!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello {{ first_name }},</p>
+            
+            <p>🎉 <strong>Congratulations!</strong> Your email has been verified and your {{ app_name }} account is now active. We're excited to have you join our community!</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ login_link }}" class="login-button">Start Using {{ app_name }}</a>
+            </div>
+            
+            <div class="features">
+                <h3>What you can do now:</h3>
+                <ul class="feature-list">
+                    <li>Book car wash appointments online</li>
+                    <li>Choose from various service packages</li>
+                    <li>Track your service history</li>
+                    <li>Manage your profile and preferences</li>
+                    <li>Receive notifications about your bookings</li>
+                    <li>Access exclusive member discounts</li>
+                </ul>
+            </div>
+            
+            <p>Our team is committed to providing you with the best car wash experience. If you have any questions or need assistance getting started, don't hesitate to reach out to our support team.</p>
+            
+            <p>Thank you for choosing {{ app_name }}. We look forward to serving you!</p>
+        </div>
+        
+        <div class="footer">
+            <p>This email was sent by {{ app_name }}.<br>
+            If you have any questions, please contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+            
+            <p><strong>Note:</strong> This is an automated email. Please do not reply to this message.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -57,6 +57,7 @@ from typing import AsyncGenerator
 
 # Import the auth module - This is all you need!
 from src.features.auth import AuthModule, AuthConfig, AuthRole, AuthUser
+from src.features.services import services_module
 from src.shared.database import init_database
 
 # Import global middleware setup
@@ -96,12 +97,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         print("[SUCCESS] Configuration is production ready")
     
+    # Create all database tables from all features
+    from src.shared.database import create_all_tables
+    await create_all_tables()
+    print("[SUCCESS] All database tables created successfully")
+    
     # Initialize auth module
     await auth_module.initialize()
     print("[SUCCESS] Auth module initialized and ready!")
     
+    # Initialize services module
+    await services_module.initialize()
+    print("[SUCCESS] Services module initialized and ready!")
+    
     print(f"[DOCS] API documentation: http://localhost:8001/docs")
     print(f"[AUTH] Auth endpoints available at: /auth/*")
+    print(f"[SERVICES] Services endpoints available at: /services/*")
     print(f"[FEATURES] Features enabled: {list(auth_module.get_feature_status().keys())}")
     
     yield
@@ -204,6 +215,11 @@ def create_app() -> FastAPI:
     
     # Store auth module in app state for access in endpoints
     app.state.auth = auth_module
+    app.state.services = services_module
+    
+    # Setup services router (public endpoints only for now)
+    from src.features.services.presentation.api.public_router import router as services_router
+    app.include_router(services_router)
     
     # Add basic health check
     @app.get("/health")

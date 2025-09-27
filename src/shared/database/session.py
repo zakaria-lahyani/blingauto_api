@@ -115,10 +115,41 @@ async def get_db_session() -> AsyncSession:
             await session.close()
 
 
+async def get_db() -> AsyncSession:
+    """FastAPI dependency for getting database session"""
+    async with get_db_session() as session:
+        yield session
+
+
 async def create_all_tables():
-    """Create all database tables"""
+    """Create all database tables from all features"""
     from src.shared.database.base import Base
+    
+    # Import all models to ensure they're registered with SQLAlchemy metadata
+    _import_all_models()
     
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    logger.info("All database tables created successfully")
+
+
+def _import_all_models():
+    """Import all database models from all features to register them with SQLAlchemy"""
+    try:
+        # Import auth models
+        from src.features.auth.infrastructure.database.models import AuthUserModel
+        logger.info("Auth models imported successfully")
+        
+        # Import services models
+        from src.features.services.infrastructure.database.models import ServiceCategoryModel, ServiceModel
+        logger.info("Services models imported successfully")
+        
+        # TODO: Add imports for future feature models here
+        # from src.features.bookings.infrastructure.database.models import BookingModel
+        # from src.features.payments.infrastructure.database.models import PaymentModel
+        
+    except ImportError as e:
+        logger.warning(f"Some models could not be imported: {e}")
+        # Continue anyway - tables for available features will still be created

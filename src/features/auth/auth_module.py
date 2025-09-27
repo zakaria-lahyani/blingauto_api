@@ -116,15 +116,10 @@ class AuthModule:
             raise
     
     async def _setup_database(self):
-        """Setup auth database tables"""
-        from src.features.auth.infrastructure.database.models import AuthUserModel
-        from src.shared.database import get_engine
-
-        engine = get_engine()
-        async with engine.begin() as conn:
-            await conn.run_sync(AuthUserModel.metadata.create_all)
-        
-        logger.info("Auth database tables created")
+        """Setup auth database tables - now handled centrally"""
+        # Database table creation is now handled centrally in shared.database
+        # This method is kept for backward compatibility and future auth-specific setup
+        logger.info("Auth database setup completed")
     
     def get_dependencies(self) -> Dict[str, Any]:
         """Get auth dependencies for other modules"""

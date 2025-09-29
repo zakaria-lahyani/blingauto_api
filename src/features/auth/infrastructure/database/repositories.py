@@ -129,3 +129,50 @@ class AuthUserRepository(BaseRepository[AuthUser, AuthUserModel]):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return model.to_entity() if model else None
+    
+    async def cleanup_expired_verification_tokens(self) -> int:
+        """Clean up expired email verification tokens"""
+        from sqlalchemy import update
+        from src.shared.utils.timestamp import utc_now
+        
+        now = utc_now()
+        
+        # Update expired verification tokens to null
+        stmt = (
+            update(AuthUserModel)
+            .where(
+                AuthUserModel.email_verification_expires.is_not(None),
+                AuthUserModel.email_verification_expires < now
+            )
+            .values(
+                email_verification_token=None,
+                email_verification_expires=None
+            )
+        )
+        
+        result = await self.session.execute(stmt)
+        return result.rowcount
+    
+    async def cleanup_expired_reset_tokens(self) -> int:
+        """Clean up expired password reset tokens"""
+        from sqlalchemy import update
+        from src.shared.utils.timestamp import utc_now
+        
+        now = utc_now()
+        
+        # Update expired reset tokens to null
+        stmt = (
+            update(AuthUserModel)
+            .where(
+                AuthUserModel.password_reset_expires.is_not(None),
+                AuthUserModel.password_reset_expires < now
+            )
+            .values(
+                password_reset_token=None,
+                password_reset_expires=None,
+                password_reset_requested_at=None
+            )
+        )
+        
+        result = await self.session.execute(stmt)
+        return result.rowcount

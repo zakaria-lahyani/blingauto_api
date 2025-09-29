@@ -30,7 +30,7 @@ class AuthConfig(BaseSettings):
             AuthFeature.EMAIL_VERIFICATION,
             AuthFeature.PASSWORD_RESET,
             AuthFeature.ACCOUNT_LOCKOUT,
-            AuthFeature.TOKEN_ROTATION,
+            AuthFeature.TOKEN_ROTATION,  # Re-enabled with proper session management
             AuthFeature.RATE_LIMITING,
             AuthFeature.ADMIN_SETUP
         ]

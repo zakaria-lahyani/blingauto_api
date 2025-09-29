@@ -21,7 +21,6 @@ class PasswordResetService:
     
     def __init__(self, config: AuthConfig):
         self.config = config
-        self._user_repo = AuthUserRepository()
         self._event_bus = get_event_bus()
     
     async def request_password_reset(self, email: str) -> bool:
@@ -30,7 +29,11 @@ class PasswordResetService:
             return False
         
         try:
-            user = await self._user_repo.get_by_email(email.lower().strip())
+            # Use database session
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                user = await user_repo.get_by_email(email.lower().strip())
             
             if not user:
                 # Don't reveal if email exists
@@ -49,7 +52,11 @@ class PasswordResetService:
             # Store hashed token in user
             token_hash = hash_token(token)
             user.set_password_reset_token(token_hash, expires_at)
-            await self._user_repo.update(user)
+            
+            # Update user with token
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                await user_repo.update(user)
             
             # Send reset email
             await self._send_reset_email(user, token)
@@ -71,7 +78,10 @@ class PasswordResetService:
             token_hash = hash_token(token)
             
             # Find user with this token
-            user = await self._user_repo.get_by_reset_token(token_hash)
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                user = await user_repo.get_by_reset_token(token_hash)
             
             if not user:
                 logger.warning("Invalid password reset token attempted")
@@ -89,7 +99,10 @@ class PasswordResetService:
             # Clear all refresh tokens for security
             user.clear_all_refresh_tokens()
             
-            updated_user = await self._user_repo.update(user)
+            # Update user
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                updated_user = await user_repo.update(user)
             
             # Send confirmation email
             await self._send_password_changed_email(user)
@@ -118,7 +131,12 @@ class PasswordResetService:
             
             # Update password
             user.change_password(new_password)
-            await self._user_repo.update(user)
+            
+            # Update user in database
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                await user_repo.update(user)
             
             # Send confirmation email
             await self._send_password_changed_email(user)

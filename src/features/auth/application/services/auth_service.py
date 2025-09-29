@@ -140,7 +140,7 @@ class AuthService:
             if self.config.is_feature_enabled(AuthFeature.TOKEN_ROTATION):
                 from .token_rotation_service import TokenRotationService
                 rotation_service = TokenRotationService(self.config)
-                await rotation_service.store_refresh_token(user, refresh_token)
+                await rotation_service.store_refresh_token(session, user, refresh_token)
             
             # Publish event
             await self._event_bus.publish(UserLoggedIn(
@@ -210,26 +210,28 @@ class AuthService:
             except (ValueError, TypeError):
                 return None
         else:
-            # Use token rotation service
+            # Use token rotation service - need a new session for this operation
             from .token_rotation_service import TokenRotationService
-            rotation_service = TokenRotationService(self.config)
-            return await rotation_service.rotate_refresh_token(refresh_token)
+            async with get_db_session() as session:
+                rotation_service = TokenRotationService(self.config)
+                return await rotation_service.rotate_refresh_token(session, refresh_token)
     
     async def logout_user(self, user: AuthUser, refresh_token: str = None):
         """Logout user"""
         if refresh_token and self.config.is_feature_enabled(AuthFeature.TOKEN_ROTATION):
             from .token_rotation_service import TokenRotationService
-            rotation_service = TokenRotationService(self.config)
-            await rotation_service.revoke_refresh_token(user, refresh_token)
+            async with get_db_session() as session:
+                rotation_service = TokenRotationService(self.config)
+                await rotation_service.revoke_refresh_token(session, user, refresh_token)
         
         logger.info(f"User logged out: {user.email}")
     
     async def logout_all_devices(self, user: AuthUser):
         """Logout user from all devices"""
         if self.config.is_feature_enabled(AuthFeature.TOKEN_ROTATION):
-            user.clear_all_refresh_tokens()
+            from .token_rotation_service import TokenRotationService
             async with get_db_session() as session:
-                user_repo = AuthUserRepository(session)
-                await user_repo.update(user)
+                rotation_service = TokenRotationService(self.config)
+                await rotation_service.revoke_all_user_tokens(session, user)
         
         logger.info(f"User logged out from all devices: {user.email}")

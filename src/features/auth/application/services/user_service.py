@@ -21,7 +21,6 @@ class UserService:
     
     def __init__(self, config: AuthConfig):
         self.config = config
-        self._user_repo = AuthUserRepository()
         self._event_bus = get_event_bus()
         self._cache_ttl = 900  # 15 minutes cache TTL
     
@@ -54,17 +53,23 @@ class UserService:
                 return cached_user
             
             # Cache miss - get from database
-            user = await self._user_repo.get_by_id(user_id)
-            if user:
-                # Cache for future requests
-                await cache.set_pickle(cache_key, user, ttl=self._cache_ttl)
-            
-            return user
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                user = await user_repo.get_by_id(user_id)
+                if user:
+                    # Cache for future requests
+                    await cache.set_pickle(cache_key, user, ttl=self._cache_ttl)
+                
+                return user
             
         except Exception as e:
             logger.warning(f"Cache error in get_user_by_id: {e}")
             # Fallback to database only
-            return await self._user_repo.get_by_id(user_id)
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                return await user_repo.get_by_id(user_id)
     
     async def get_user_by_email(self, email: str) -> Optional[AuthUser]:
         """Get user by email with caching"""
@@ -80,26 +85,38 @@ class UserService:
                 return cached_user
             
             # Cache miss - get from database
-            user = await self._user_repo.get_by_email(email)
-            if user:
-                # Cache for future requests with both email and ID keys
-                await cache.set_pickle(cache_key, user, ttl=self._cache_ttl)
-                await cache.set_pickle(self._get_cache_key("id", str(user.id)), user, ttl=self._cache_ttl)
-            
-            return user
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                user = await user_repo.get_by_email(email)
+                if user:
+                    # Cache for future requests with both email and ID keys
+                    await cache.set_pickle(cache_key, user, ttl=self._cache_ttl)
+                    await cache.set_pickle(self._get_cache_key("id", str(user.id)), user, ttl=self._cache_ttl)
+                
+                return user
             
         except Exception as e:
             logger.warning(f"Cache error in get_user_by_email: {e}")
             # Fallback to database only
-            return await self._user_repo.get_by_email(email)
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                return await user_repo.get_by_email(email)
     
     async def list_users(self, limit: int = 100, offset: int = 0) -> List[AuthUser]:
         """List all users"""
-        return await self._user_repo.list_all(limit=limit, offset=offset)
+        from src.shared.simple_database import get_db_session
+        async with get_db_session() as session:
+            user_repo = AuthUserRepository(session)
+            return await user_repo.list_all(limit=limit, offset=offset)
     
     async def list_users_by_role(self, role: AuthRole, limit: int = 100, offset: int = 0) -> List[AuthUser]:
         """List users by role"""
-        return await self._user_repo.list_by_role(role, limit=limit, offset=offset)
+        from src.shared.simple_database import get_db_session
+        async with get_db_session() as session:
+            user_repo = AuthUserRepository(session)
+            return await user_repo.list_by_role(role, limit=limit, offset=offset)
     
     async def update_user_profile(
         self, 
@@ -118,7 +135,12 @@ class UserService:
                 user.phone = phone.strip() if phone else None
             
             user.update_timestamp()
-            updated_user = await self._user_repo.update(user)
+            
+            # Use database session for update
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                updated_user = await user_repo.update(user)
             
             # Invalidate cache
             await self._invalidate_user_cache(user)
@@ -144,7 +166,15 @@ class UserService:
                 return user  # No change needed
             
             user.change_role(new_role)
-            updated_user = await self._user_repo.update(user)
+            
+            # Use database session for update
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                updated_user = await user_repo.update(user)
+            
+            # Invalidate cache
+            await self._invalidate_user_cache(user)
             
             # Publish event
             await self._event_bus.publish(UserRoleChanged(
@@ -167,7 +197,12 @@ class UserService:
         try:
             user.is_active = True
             user.update_timestamp()
-            updated_user = await self._user_repo.update(user)
+            
+            # Use database session for update
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                updated_user = await user_repo.update(user)
             
             logger.info(f"Activated user: {user.email}")
             return updated_user
@@ -182,7 +217,12 @@ class UserService:
             user.is_active = False
             user.clear_all_refresh_tokens()  # Logout from all devices
             user.update_timestamp()
-            updated_user = await self._user_repo.update(user)
+            
+            # Use database session for update
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                updated_user = await user_repo.update(user)
             
             logger.info(f"Deactivated user: {user.email}")
             return updated_user
@@ -194,11 +234,15 @@ class UserService:
     async def delete_user(self, user_id: UUID) -> bool:
         """Delete user account"""
         try:
-            user = await self._user_repo.get_by_id(user_id)
-            if not user:
-                return False
-            
-            success = await self._user_repo.delete(user_id)
+            # Use database session
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                user = await user_repo.get_by_id(user_id)
+                if not user:
+                    return False
+                
+                success = await user_repo.delete(user_id)
             
             if success:
                 logger.info(f"Deleted user: {user.email}")
@@ -214,9 +258,13 @@ class UserService:
         try:
             stats = {}
             
-            for role in AuthRole:
-                count = await self._user_repo.count_by_role(role)
-                stats[role.value] = count
+            # Use database session
+            from src.shared.simple_database import get_db_session
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                for role in AuthRole:
+                    count = await user_repo.count_by_role(role)
+                    stats[role.value] = count
             
             return stats
             

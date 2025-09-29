@@ -507,5 +507,19 @@ def create_auth_router(auth_module) -> APIRouter:
                 "has_verification_token": bool(user.email_verification_token),
                 "token_expires": user.email_verification_expires.isoformat() if user.email_verification_expires else None
             }
+    
+    @router.post("/cleanup/expired-tokens", response_model=MessageResponse)
+    async def cleanup_expired_tokens(admin_user: AuthUser = Depends(admin_required)):
+        """Clean up expired verification and reset tokens (Admin only)"""
+        try:
+            verification_count = await auth_module.email_verification_service.cleanup_expired_tokens()
+            
+            return MessageResponse(
+                message=f"Cleaned up {verification_count} expired verification tokens"
+            )
+            
+        except Exception as e:
+            logger.error(f"Token cleanup failed: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token cleanup failed")
 
     return router

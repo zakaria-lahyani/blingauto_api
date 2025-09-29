@@ -32,24 +32,24 @@ class AuthUserModel(Base):
     
     # Email verification
     email_verified = Column(Boolean, default=False, nullable=False)
-    email_verified_at = Column(DateTime)
+    email_verified_at = Column(DateTime(timezone=True))
     email_verification_token = Column(String(255))
-    email_verification_expires = Column(DateTime)
+    email_verification_expires = Column(DateTime(timezone=True))
     
     # Password reset
     password_reset_token = Column(String(255))
-    password_reset_expires = Column(DateTime)
-    password_reset_requested_at = Column(DateTime)
-    password_changed_at = Column(DateTime)
+    password_reset_expires = Column(DateTime(timezone=True))
+    password_reset_requested_at = Column(DateTime(timezone=True))
+    password_changed_at = Column(DateTime(timezone=True))
     
     # Account lockout
     failed_login_attempts = Column(Integer, default=0)
-    locked_until = Column(DateTime)
+    locked_until = Column(DateTime(timezone=True))
     lockout_count = Column(Integer, default=0)
-    last_failed_login = Column(DateTime)
+    last_failed_login = Column(DateTime(timezone=True))
     
     # Session management
-    last_login = Column(DateTime)
+    last_login = Column(DateTime(timezone=True))
     refresh_tokens = Column(JSON, default=list)
     
     # Timestamps - using standardized UTC timestamps

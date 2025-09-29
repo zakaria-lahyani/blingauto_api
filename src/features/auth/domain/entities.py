@@ -103,12 +103,12 @@ class AuthUser:
     
     def verify_password(self, password: str) -> bool:
         """Verify password against hash"""
-        from ..infrastructure.security.password_hasher import verify_password
+        from src.features.auth.infrastructure.security.password_hasher import verify_password
         return verify_password(password, self.password_hash)
     
     def change_password(self, new_password: str):
         """Change user password"""
-        from ..infrastructure.security.password_hasher import hash_password
+        from src.features.auth.infrastructure.security.password_hasher import hash_password
         self.password_hash = hash_password(new_password)
         self.password_changed_at = utc_now()
         self.updated_at = utc_now()

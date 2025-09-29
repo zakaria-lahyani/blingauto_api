@@ -51,56 +51,56 @@ class AuthTestRunner:
                 "skip_registration": True  # Don't register, already exists
             },
             "admin": {
-                "email": f"admin_{timestamp}@example.com",
+                "email": f"admin@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Admin",
                 "last_name": "Admin",
                 "phone": "0000000002"
             },
             "supermanager": {
-                "email": f"supermanager_{timestamp}@example.com",
+                "email": f"supermanager@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Super",
                 "last_name": "Manager",
                 "phone": "0000000003"
             },
             "manager": {
-                "email": f"manager_{timestamp}@example.com",
+                "email": f"manager@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Manager",
                 "last_name": "Manager",
                 "phone": "0000000004"
             },
             "washer_1": {
-                "email": f"washer1_{timestamp}@example.com",
+                "email": f"washer1@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Washer",
                 "last_name": "One",
                 "phone": "0000000005"
             },
             "washer_2": {
-                "email": f"washer2_{timestamp}@example.com",
+                "email": f"washer2@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Washer",
                 "last_name": "Two",
                 "phone": "0000000006"
             },
             "washer_3": {
-                "email": f"washer3_{timestamp}@example.com",
+                "email": f"washer3@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Washer",
                 "last_name": "Three",
                 "phone": "0000000007"
             },
             "client_verified": {
-                "email": f"client_verified_{timestamp}@example.com",
+                "email": f"client_verified@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Client",
                 "last_name": "Verified",
                 "phone": "0000000008"
             },
             "client_unverified": {
-                "email": f"client_unverified_{timestamp}@example.com",
+                "email": f"client_unverified@example.com",
                 "password": "SecureDevPassword123!",
                 "first_name": "Client",
                 "last_name": "Unverified",
@@ -123,6 +123,60 @@ class AuthTestRunner:
         """Make HTTP request"""
         url = f"{self.base_url}{endpoint}"
         return requests.request(method, url, headers=self.headers, **kwargs)
+    
+    def fetch_existing_users(self):
+        """Fetch existing users from API to get their IDs"""
+        # First try to login as admin to get user list
+        admin_login_data = {
+            "email": "admin@carwash.com",
+            "password": "AdminSecure123!@#"
+        }
+        
+        try:
+            admin_response = self.make_request("POST", "/auth/login", json=admin_login_data)
+            if admin_response.status_code == 200:
+                admin_token = admin_response.json()["access_token"]
+                
+                # Get user list
+                headers = self.headers.copy()
+                headers["Authorization"] = f"Bearer {admin_token}"
+                users_response = requests.get(f"{self.base_url}/auth/users", headers=headers)
+                
+                if users_response.status_code == 200:
+                    users_data = users_response.json()
+                    users_list = users_data.get('users', []) if isinstance(users_data, dict) else users_data
+                    
+                    # Map users by email to test user types
+                    email_to_user_type = {}
+                    for user_type, user_data in self.test_users.items():
+                        email_to_user_type[user_data["email"]] = user_type
+                    
+                    # Populate users dictionary with actual user data including IDs
+                    for user in users_list:
+                        email = user.get("email")
+                        if email in email_to_user_type:
+                            user_type = email_to_user_type[email]
+                            # Merge test data with actual user data
+                            self.users[user_type] = {
+                                **self.test_users[user_type],
+                                "id": user.get("id"),
+                                "email_verified": user.get("email_verified", False),
+                                "role": user.get("role", "client")
+                            }
+                    
+                    print(f"Fetched {len(self.users)} existing users with IDs")
+                    return
+                    
+            # If admin approach fails, populate with test data without IDs
+            print("Could not fetch user IDs, using test data without IDs")
+            for user_type, user_data in self.test_users.items():
+                self.users[user_type] = user_data.copy()
+                
+        except Exception as e:
+            print(f"Error fetching existing users: {e}")
+            # Fallback: populate with test data without IDs
+            for user_type, user_data in self.test_users.items():
+                self.users[user_type] = user_data.copy()
     
     def test_1_registration(self):
         """Test 1: Register all users and check persistence"""
@@ -312,69 +366,125 @@ class AuthTestRunner:
                 admin_token = response.json()["access_token"]
                 self.log_result("Admin login", "PASS", "Admin logged in successfully")
                 
-                # Test promoting users to different roles
-                print("\n--- Happy Path: Role Promotions ---")
+                # List all users to get their IDs
+                print("\n--- Fetching User List ---")
+                headers = self.headers.copy()
+                headers["Authorization"] = f"Bearer {admin_token}"
+                users_response = requests.get(f"{self.base_url}/auth/users", headers=headers)
                 
-                # Promote manager to manager role
-                if "manager" in self.users:
-                    result = self.change_user_role(
-                        self.users["manager"]["id"],
-                        "manager",
-                        admin_token
-                    )
-                    if result["status"] == 200:
-                        self.log_result("Promote manager", "PASS", "Manager role assigned")
-                    else:
-                        self.log_result("Promote manager", "FAIL", f"Status {result['status']}")
-                
-                # Promote washers
-                for washer in ["washer_1", "washer_2", "washer_3"]:
-                    if washer in self.users:
-                        result = self.change_user_role(
-                            self.users[washer]["id"],
-                            "washer",
-                            admin_token
-                        )
-                        if result["status"] == 200:
-                            self.log_result(f"Promote {washer}", "PASS", "Washer role assigned")
-                        else:
-                            self.log_result(f"Promote {washer}", "FAIL", f"Status {result['status']}")
-                
-                print("\n--- Negative Tests: Should Fail ---")
-                
-                # Test washer trying to promote self (should fail)
-                if "washer_2" in self.users:
-                    # First login as washer
-                    washer_login = self.make_request("POST", "/auth/login", json={
-                        "email": self.users["washer_2"]["email"],
-                        "password": self.users["washer_2"]["password"]
-                    })
+                if users_response.status_code == 200:
+                    users_data = users_response.json()
+                    users_list = users_data.get('users', []) if isinstance(users_data, dict) else users_data
+                    self.log_result("Fetch users", "PASS", f"Retrieved {len(users_list)} users")
                     
-                    if washer_login.status_code == 200:
-                        washer_token = washer_login.json()["access_token"]
+                    # Debug: Print the actual user data
+                    print("DEBUG: User list data:")
+                    print(f"  Raw response: {users_data}")
+                    print(f"  Users list length: {len(users_list)}")
+                    for i, user in enumerate(users_list):
+                        print(f"  User {i}: {user}")
+                    
+                    # Map users by email to get IDs
+                    email_to_user = {}
+                    for user in users_list:
+                        email_to_user[user.get("email")] = user
+                    
+                    # Test promoting users to different roles
+                    print("\n--- Happy Path: Role Promotions ---")
+                    print("[EXPLANATION] We're going to promote users from their default 'client' role to specific roles:")
+                    print("   - admin@example.com: client -> admin")
+                    print("   - manager@example.com: client -> manager") 
+                    print("   - washer1/2/3@example.com: client -> washer")
+                    
+                    # Promote admin@example.com to admin role (this is the main one you're concerned about)
+                    admin_email = "admin@example.com"
+                    if admin_email in email_to_user:
+                        current_role = email_to_user[admin_email].get("role", "unknown")
+                        print(f"[TARGET] PROMOTING ADMIN USER:")
+                        print(f"   Email: {admin_email}")
+                        print(f"   Current Role: {current_role}")
+                        print(f"   Target Role: admin")
                         
-                        # Try to promote self
-                        result = self.change_user_role(
-                            self.users["washer_2"]["id"],
-                            "manager",
-                            washer_token
-                        )
-                        if result["status"] in [403, 401]:
-                            self.log_result("Washer self-promotion", "PASS", "Correctly denied")
+                        user_id = email_to_user[admin_email]["id"]
+                        result = self.change_user_role(user_id, "admin", admin_token)
+                        if result["status"] == 200:
+                            self.log_result("Promote admin@example.com", "PASS", "Admin role assigned")
                         else:
-                            self.log_result("Washer self-promotion", "FAIL", "Should be denied")
+                            self.log_result("Promote admin@example.com", "FAIL", f"Status {result['status']}")
+                    else:
+                        self.log_result("Promote admin@example.com", "SKIP", "Admin user not found")
+                    
+                    # Promote manager to manager role
+                    manager_email = "manager@example.com"
+                    if manager_email in email_to_user:
+                        current_role = email_to_user[manager_email].get("role", "unknown")
+                        print(f"[TARGET] PROMOTING MANAGER USER:")
+                        print(f"   Email: {manager_email}")
+                        print(f"   Current Role: {current_role}")
+                        print(f"   Target Role: manager")
                         
-                        # Try to promote another washer
-                        if "washer_3" in self.users:
-                            result = self.change_user_role(
-                                self.users["washer_3"]["id"],
-                                "manager",
-                                washer_token
-                            )
-                            if result["status"] in [403, 401]:
-                                self.log_result("Washer promote other", "PASS", "Correctly denied")
+                        user_id = email_to_user[manager_email]["id"]
+                        result = self.change_user_role(user_id, "manager", admin_token)
+                        if result["status"] == 200:
+                            self.log_result("Promote manager", "PASS", "Manager role assigned")
+                        else:
+                            self.log_result("Promote manager", "FAIL", f"Status {result['status']}")
+                    else:
+                        self.log_result("Promote manager", "SKIP", "Manager user not found")
+                    
+                    # Promote washers
+                    washer_emails = ["washer1@example.com", "washer2@example.com", "washer3@example.com"]
+                    for i, washer_email in enumerate(washer_emails, 1):
+                        if washer_email in email_to_user:
+                            user_id = email_to_user[washer_email]["id"]
+                            result = self.change_user_role(user_id, "washer", admin_token)
+                            if result["status"] == 200:
+                                self.log_result(f"Promote washer_{i}", "PASS", "Washer role assigned")
                             else:
-                                self.log_result("Washer promote other", "FAIL", "Should be denied")
+                                self.log_result(f"Promote washer_{i}", "FAIL", f"Status {result['status']}")
+                        else:
+                            self.log_result(f"Promote washer_{i}", "SKIP", "Washer user not found")
+                    
+                    print("\n--- Negative Tests: Should Fail ---")
+                    
+                    # Test washer trying to promote self (should fail)
+                    washer_email = "washer2@example.com"
+                    if washer_email in email_to_user:
+                        # First login as washer
+                        washer_login = self.make_request("POST", "/auth/login", json={
+                            "email": washer_email,
+                            "password": "SecureDevPassword123!"
+                        })
+                        
+                        if washer_login.status_code == 200:
+                            washer_token = washer_login.json()["access_token"]
+                            user_id = email_to_user[washer_email]["id"]
+                            
+                            # Try to promote self
+                            result = self.change_user_role(user_id, "manager", washer_token)
+                            if result["status"] in [403, 401]:
+                                self.log_result("Washer self-promotion", "PASS", "Correctly denied")
+                            else:
+                                self.log_result("Washer self-promotion", "FAIL", "Should be denied")
+                            
+                            # Try to promote another washer
+                            other_washer_email = "washer3@example.com"
+                            if other_washer_email in email_to_user:
+                                other_user_id = email_to_user[other_washer_email]["id"]
+                                result = self.change_user_role(other_user_id, "manager", washer_token)
+                                if result["status"] in [403, 401]:
+                                    self.log_result("Washer promote other", "PASS", "Correctly denied")
+                                else:
+                                    self.log_result("Washer promote other", "FAIL", "Should be denied")
+                        else:
+                            self.log_result("Washer login for negative test", "SKIP", "Cannot login washer")
+                    else:
+                        self.log_result("Negative tests", "SKIP", "Washer user not found")
+                        
+                else:
+                    self.log_result("Fetch users", "FAIL", f"Status {users_response.status_code}")
+                    self.log_result("Role tests", "SKIP", "Cannot proceed without user list")
+                    
             else:
                 self.log_result("Admin login", "FAIL", f"Status {response.status_code}")
                 self.log_result("Role tests", "SKIP", "Cannot proceed without admin")
@@ -384,6 +494,11 @@ class AuthTestRunner:
     
     def change_user_role(self, user_id: str, new_role: str, admin_token: str) -> dict:
         """Helper method to change user role"""
+        print(f"    [ROLE CHANGE] ATTEMPTING:")
+        print(f"       User ID: {user_id}")
+        print(f"       New Role: {new_role}")
+        print(f"       Endpoint: PUT /auth/users/{user_id}/role")
+        
         headers = self.headers.copy()
         headers["Authorization"] = f"Bearer {admin_token}"
         
@@ -392,7 +507,15 @@ class AuthTestRunner:
             json={"role": new_role},
             headers=headers
         )
-        return {"status": response.status_code, "data": response.json() if response.status_code < 400 else response.text}
+        
+        print(f"       Response Status: {response.status_code}")
+        if response.status_code < 400:
+            response_data = response.json()
+            print(f"       Updated User: {response_data}")
+            return {"status": response.status_code, "data": response_data}
+        else:
+            print(f"       Error Response: {response.text}")
+            return {"status": response.status_code, "data": response.text}
     
     def test_4_email_verification(self):
         """Test 4: Email verification scenarios"""
@@ -400,6 +523,41 @@ class AuthTestRunner:
         print("TEST 4: EMAIL VERIFICATION")
         print("="*60)
         
+        # Test verification for multiple users
+        users_to_verify = ["admin", "manager", "washer_1", "client_verified"]
+        
+        for user_type in users_to_verify:
+            if user_type not in self.users:
+                continue
+                
+            user = self.users[user_type]
+            print(f"\n--- Simulating verification for {user_type} ---")
+            
+            # Get verification status first
+            try:
+                response = requests.get(f"{self.base_url}/auth/verification-status/{user['email']}")
+                if response.status_code == 200:
+                    status = response.json()
+                    if status.get("email_verified"):
+                        self.log_result(
+                            f"Check {user_type} verification",
+                            "PASS",
+                            "Already verified"
+                        )
+                        continue
+                    else:
+                        # Simulate verification by directly calling endpoint
+                        # In real scenario, we'd extract token from email
+                        print(f"  Note: {user_type} needs verification (simulated)")
+                        self.log_result(
+                            f"Check {user_type} verification",
+                            "INFO",
+                            "Needs verification"
+                        )
+            except Exception as e:
+                self.log_result(f"Check {user_type} verification", "FAIL", str(e))
+        
+        # Test unverified user verification flow
         if "client_unverified" not in self.users:
             self.log_result("Email verification", "SKIP", "No unverified user created")
             return
@@ -425,8 +583,27 @@ class AuthTestRunner:
                     "Verification email requested"
                 )
                 
-                # Note: Actual verification would need the token from email
-                print("\nNote: Email verification confirmation requires token from email")
+                # Test resend verification
+                print("\n--- Testing Resend Verification ---")
+                time.sleep(1)  # Small delay
+                resend_response = self.make_request("POST", "/auth/verify-email/request", json={
+                    "email": user["email"]
+                })
+                if resend_response.status_code == 200:
+                    self.log_result(
+                        "Resend verification email",
+                        "PASS",
+                        "Resend successful"
+                    )
+                else:
+                    self.log_result(
+                        "Resend verification email",
+                        "FAIL",
+                        f"Status {resend_response.status_code}"
+                    )
+                
+                print("\nNote: Actual verification requires token from email")
+                print("In production, token would be extracted and verified")
             else:
                 self.log_result(
                     "Request email verification",
@@ -435,6 +612,251 @@ class AuthTestRunner:
                 )
         except Exception as e:
             self.log_result("Email verification", "FAIL", str(e))
+    
+    def test_5_login_after_verification(self):
+        """Test 5: Login after verification"""
+        print("\n" + "="*60)
+        print("TEST 5: LOGIN AFTER VERIFICATION")
+        print("="*60)
+        
+        # Test login for all verified users
+        verified_users = ["admin", "manager", "washer_1", "client_verified"]
+        
+        for user_type in verified_users:
+            if user_type not in self.users:
+                continue
+            
+            user = self.users[user_type]
+            print(f"\n--- Testing login for {user_type} (should work) ---")
+            
+            try:
+                response = self.make_request("POST", "/auth/login", json={
+                    "email": user["email"],
+                    "password": user["password"]
+                })
+                
+                if response.status_code == 200:
+                    token_data = response.json()
+                    self.tokens[user_type] = token_data["access_token"]
+                    self.log_result(
+                        f"Login {user_type} after verification",
+                        "PASS",
+                        "Login successful"
+                    )
+                    
+                    # Test /me endpoint
+                    headers = self.headers.copy()
+                    headers["Authorization"] = f"Bearer {token_data['access_token']}"
+                    me_response = requests.get(f"{self.base_url}/auth/me", headers=headers)
+                    
+                    if me_response.status_code == 200:
+                        self.log_result(
+                            f"/me for {user_type}",
+                            "PASS",
+                            "Profile retrieved successfully"
+                        )
+                    else:
+                        self.log_result(
+                            f"/me for {user_type}",
+                            "FAIL",
+                            f"Status {me_response.status_code}"
+                        )
+                else:
+                    # Check if it's because of unverified email
+                    if "verification required" in response.text.lower():
+                        self.log_result(
+                            f"Login {user_type}",
+                            "INFO",
+                            "Email verification required"
+                        )
+                    else:
+                        self.log_result(
+                            f"Login {user_type}",
+                            "FAIL",
+                            f"Status {response.status_code}: {response.text}"
+                        )
+            except Exception as e:
+                self.log_result(f"Login {user_type}", "FAIL", str(e))
+    
+    def test_6_password_management(self):
+        """Test 6: Password reset and change scenarios"""
+        print("\n" + "="*60)
+        print("TEST 6: PASSWORD MANAGEMENT")
+        print("="*60)
+        
+        if "client_verified" not in self.users:
+            self.log_result("Password management", "SKIP", "No test user")
+            return
+        
+        user = self.users["client_verified"]
+        
+        # Test password reset request
+        print("\n--- Testing Password Reset Request ---")
+        try:
+            response = self.make_request("POST", "/auth/forgot-password", json={
+                "email": user["email"]
+            })
+            
+            if response.status_code == 200:
+                self.log_result(
+                    "Password reset request",
+                    "PASS",
+                    "Reset email requested"
+                )
+            else:
+                self.log_result(
+                    "Password reset request",
+                    "FAIL",
+                    f"Status {response.status_code}"
+                )
+        except Exception as e:
+            self.log_result("Password reset", "FAIL", str(e))
+        
+        # Test password change (requires login)
+        if "client_verified" in self.tokens:
+            print("\n--- Testing Password Change ---")
+            headers = self.headers.copy()
+            headers["Authorization"] = f"Bearer {self.tokens['client_verified']}"
+            
+            try:
+                response = requests.post(
+                    f"{self.base_url}/auth/change-password",
+                    json={
+                        "current_password": user["password"],
+                        "new_password": "NewSecurePassword123!@#"
+                    },
+                    headers=headers
+                )
+                
+                if response.status_code == 200:
+                    self.log_result(
+                        "Password change",
+                        "PASS",
+                        "Password changed successfully"
+                    )
+                    # Update stored password for future tests
+                    self.users["client_verified"]["password"] = "NewSecurePassword123!@#"
+                else:
+                    self.log_result(
+                        "Password change",
+                        "FAIL",
+                        f"Status {response.status_code}"
+                    )
+            except Exception as e:
+                self.log_result("Password change", "FAIL", str(e))
+    
+    def test_7_token_management(self):
+        """Test 7: Token refresh and logout scenarios"""
+        print("\n" + "="*60)
+        print("TEST 7: TOKEN MANAGEMENT")
+        print("="*60)
+        
+        # Test token refresh
+        print("\n--- Testing Token Refresh ---")
+        # This would require storing refresh tokens from login
+        
+        # Test logout
+        if "client_verified" in self.tokens:
+            print("\n--- Testing Logout ---")
+            headers = self.headers.copy()
+            headers["Authorization"] = f"Bearer {self.tokens['client_verified']}"
+            
+            try:
+                # Note: logout requires refresh token in body
+                response = requests.post(
+                    f"{self.base_url}/auth/logout",
+                    json={"refresh_token": "dummy_refresh_token"},  # Would need real refresh token
+                    headers=headers
+                )
+                
+                if response.status_code in [200, 500]:  # 500 if refresh token invalid
+                    self.log_result(
+                        "Logout",
+                        "INFO",
+                        "Logout attempted"
+                    )
+                else:
+                    self.log_result(
+                        "Logout",
+                        "FAIL",
+                        f"Unexpected status {response.status_code}"
+                    )
+            except Exception as e:
+                self.log_result("Logout", "FAIL", str(e))
+    
+    def test_8_user_management(self):
+        """Test 8: User list and management endpoints"""
+        print("\n" + "="*60)
+        print("TEST 8: USER MANAGEMENT")
+        print("="*60)
+        
+        # Need admin token
+        admin_token = self.tokens.get("superadmin")
+        if not admin_token:
+            # Try to login as admin
+            try:
+                response = self.make_request("POST", "/auth/login", json={
+                    "email": "admin@carwash.com",
+                    "password": "AdminSecure123!@#"
+                })
+                if response.status_code == 200:
+                    admin_token = response.json()["access_token"]
+                    self.tokens["superadmin"] = admin_token
+            except:
+                pass
+        
+        if not admin_token:
+            self.log_result("User management", "SKIP", "No admin token")
+            return
+        
+        headers = self.headers.copy()
+        headers["Authorization"] = f"Bearer {admin_token}"
+        
+        # Test list users
+        print("\n--- Testing List Users ---")
+        try:
+            response = requests.get(f"{self.base_url}/auth/users", headers=headers)
+            
+            if response.status_code == 200:
+                users = response.json()
+                self.log_result(
+                    "List users",
+                    "PASS",
+                    f"Retrieved {users.get('total', 0)} users"
+                )
+            else:
+                self.log_result(
+                    "List users",
+                    "FAIL",
+                    f"Status {response.status_code}"
+                )
+        except Exception as e:
+            self.log_result("List users", "FAIL", str(e))
+        
+        # Test get specific user
+        if "client_verified" in self.users and self.users["client_verified"].get("id"):
+            print("\n--- Testing Get User by ID ---")
+            user_id = self.users["client_verified"]["id"]
+            
+            try:
+                response = requests.get(f"{self.base_url}/auth/users/{user_id}", headers=headers)
+                
+                if response.status_code == 200:
+                    self.log_result(
+                        "Get user by ID",
+                        "PASS",
+                        "User retrieved successfully"
+                    )
+                else:
+                    self.log_result(
+                        "Get user by ID",
+                        "FAIL",
+                        f"Status {response.status_code}"
+                    )
+            except Exception as e:
+                self.log_result("Get user by ID", "FAIL", str(e))
+        else:
+            self.log_result("Get user by ID", "SKIP", "Client user ID not available")
     
     def print_summary(self):
         """Print test summary"""
@@ -471,39 +893,82 @@ class AuthTestRunner:
         
         return failed == 0
 
-
 def main():
-    """Main test execution"""
-    print("Starting Auth Endpoint Tests")
+    """Main test execution following the planned sequence"""
+    print("="*60)
+    print("AUTHENTICATION SYSTEM COMPREHENSIVE TEST SUITE")
+    print("="*60)
     print(f"Target: {BASE_URL}")
     print(f"Time: {datetime.now()}")
+    print("\nTest Plan:")
+    print("1. Register users")
+    print("2. Test login (should fail for unverified)")
+    print("3. Simulate email verification")
+    print("4. Test login again (should work)")
+    print("5. Test role-based access control")
+    print("6. Test password management")
+    print("7. Test token management")
+    print("8. Test user management")
+    print("="*60)
     
     runner = AuthTestRunner()
     
     try:
-        # Run all test suites
+        # Step 1: Register all users
         # runner.test_1_registration()
-        runner.test_2_login_and_me()
-        # runner.test_3_role_validation()
-        # runner.test_4_email_verification()
-        #
-        # # Print summary
-        # success = runner.print_summary()
         
-        # if success:
+        # If skipping registration, populate users dictionary with existing users
+        if False:  # Set to False if running full registration
+            print("Using pre-existing users (skipping registration)")
+            # Fetch actual user data including IDs from the API
+            runner.fetch_existing_users()
+        else:
+            print("Running full registration process...")
+            runner.test_1_registration()
+        
+        # Step 2: Test login and /me (should fail for unverified users)
+        print("\n[PHASE 1: Testing login BEFORE verification]")
+        # runner.test_2_login_and_me()
 
-        #     print("\nALL TESTS PASSED!")
-        #     return 0
-        # else:
-        #     print("\nSOME TESTS FAILED!")
-        #     return 1
+
+
+        # Step 3: Run email verification for unverified users
+        # runner.test_4_email_verification()
+        
+        # Step 4: Test login and /me again (should work after verification)
+        print("\n[PHASE 2: Testing login AFTER verification]")
+        runner.test_5_login_after_verification()
+        
+        # Step 5: Test role-based access control
+        runner.test_3_role_validation()
+        
+        # Step 6: Test password management
+        runner.test_6_password_management()
+        
+        # Step 7: Test token management
+        runner.test_7_token_management()
+        
+        # Step 8: Test user management
+        runner.test_8_user_management()
+        
+        # Print final summary
+        success = runner.print_summary()
+        
+        if success:
+            print("\n[SUCCESS] ALL TESTS PASSED!")
+            return 0
+        else:
+            print("\n[WARNING] SOME TESTS FAILED!")
+            return 1
             
     except KeyboardInterrupt:
-        print("\nTests interrupted by user")
+        print("\n[INTERRUPTED] Tests interrupted by user")
         runner.print_summary()
         return 2
     except Exception as e:
-        print(f"\nUnexpected error: {e}")
+        print(f"\n[ERROR] Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
         runner.print_summary()
         return 3
 

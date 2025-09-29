@@ -187,3 +187,16 @@ class EmailVerificationService:
         except Exception as e:
             logger.error(f"Error sending welcome email to {user.email}: {e}")
             return False
+    
+    async def cleanup_expired_tokens(self) -> int:
+        """Clean up expired verification tokens"""
+        try:
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                count = await user_repo.cleanup_expired_verification_tokens()
+                if count > 0:
+                    logger.info(f"Cleaned up {count} expired verification tokens")
+                return count
+        except Exception as e:
+            logger.error(f"Error cleaning up expired verification tokens: {e}")
+            return 0

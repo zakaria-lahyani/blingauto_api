@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.database.session import get_db
+from src.shared.simple_database import get_db
 from src.shared.auth import get_current_user, get_current_active_user
 from src.features.auth.domain.entities import AuthUser
 from src.features.auth.domain.enums import AuthRole

@@ -78,6 +78,11 @@ class AuthModule:
             return
         
         try:
+            # Register this module with shared auth dependencies
+            from src.shared.auth import set_auth_module
+            set_auth_module(self)
+            logger.info("Auth module registered with shared dependencies")
+            
             # Initialize email service with SMTP configuration
             await self._setup_email_service()
             

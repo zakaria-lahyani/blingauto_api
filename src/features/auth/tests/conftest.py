@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Add src to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / "src"))
 
-from src.shared.database import init_database, get_db_session, create_all_tables
+from src.shared.simple_database import init_database, get_db_session, create_tables as create_all_tables
 from src.features.auth import AuthModule, AuthConfig
 from src.shared.middleware import setup_global_middleware
 from src.shared.config import GlobalConfig

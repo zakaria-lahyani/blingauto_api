@@ -13,7 +13,7 @@ from src.features.auth.domain.enums import AuthRole
 from src.features.auth.config import AuthConfig
 from src.features.auth.infrastructure.security import hash_password
 from src.features.auth.infrastructure.database.repositories import AuthUserRepository
-from src.shared.database import get_db_session
+from src.shared.simple_database import get_db_session
 
 fake = Faker()
 

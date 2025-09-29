@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from src.shared.config import GlobalConfig
+from src.shared.simple_config import AppConfig
 from src.shared.middleware.security_headers import SecurityHeadersMiddleware
 from src.shared.middleware.request_logging import RequestLoggingMiddleware
 from src.shared.middleware.error_handling import GlobalErrorHandlingMiddleware
@@ -19,7 +19,7 @@ from src.shared.middleware.security_logging import SecurityLoggingMiddleware
 logger = logging.getLogger(__name__)
 
 
-def setup_global_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def setup_global_middleware(app: FastAPI, config: AppConfig) -> None:
     """
     Setup global middleware for the entire application.
     
@@ -64,74 +64,78 @@ def setup_global_middleware(app: FastAPI, config: GlobalConfig) -> None:
     logger.info("Global middleware setup completed")
 
 
-def _setup_cors_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_cors_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup CORS middleware"""
     
-    cors_origins = config.get_cors_origins()
+    # Simple CORS setup for development
+    cors_origins = ["http://localhost:3000", "http://localhost:8000"] if config.debug else []
     
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
-        allow_credentials=config.cors.allow_credentials,
-        allow_methods=config.cors.allow_methods,
-        allow_headers=config.cors.allow_headers,
-        expose_headers=config.cors.expose_headers,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     
     logger.info(f"CORS middleware configured with origins: {cors_origins}")
 
 
-def _setup_security_headers_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_security_headers_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup security headers middleware"""
     
     app.add_middleware(
         SecurityHeadersMiddleware,
-        config=config.security
+        config=config
     )
     
     logger.info("Security headers middleware configured")
 
 
-def _setup_trusted_host_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_trusted_host_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup trusted host middleware (production only)"""
     
-    if config.is_production and config.allowed_hosts:
+    if config.environment == "production":
+        # In production, you would set specific allowed hosts
+        allowed_hosts = ["*"]  # This should be configured based on your production setup
         app.add_middleware(
             TrustedHostMiddleware,
-            allowed_hosts=config.allowed_hosts
+            allowed_hosts=allowed_hosts
         )
-        logger.info(f"Trusted host middleware configured for hosts: {config.allowed_hosts}")
+        logger.info(f"Trusted host middleware configured for hosts: {allowed_hosts}")
     else:
-        logger.info("Trusted host middleware skipped (not production or no allowed hosts)")
+        logger.info("Trusted host middleware skipped (not production)")
 
 
-def _setup_request_logging_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_request_logging_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup request logging middleware"""
     
-    if config.logging.enable_request_logging:
+    # Enable request logging in debug mode
+    if config.debug:
         app.add_middleware(
             RequestLoggingMiddleware,
-            config=config.logging
+            config=config
         )
         logger.info("Request logging middleware configured")
     else:
         logger.info("Request logging middleware skipped (disabled)")
 
 
-def _setup_compression_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_compression_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup response compression middleware"""
     
-    if config.compression.enable_gzip:
+    # Enable GZIP compression in production
+    if config.environment == "production":
         app.add_middleware(
             GZipMiddleware,
-            minimum_size=config.compression.gzip_minimum_size
+            minimum_size=1000
         )
-        logger.info(f"GZIP compression middleware configured (min size: {config.compression.gzip_minimum_size})")
+        logger.info("GZIP compression middleware configured (min size: 1000)")
     else:
-        logger.info("GZIP compression middleware skipped (disabled)")
+        logger.info("GZIP compression middleware skipped (disabled in development)")
 
 
-def _setup_security_logging_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_security_logging_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup security event logging middleware"""
     
     # Enable security logging if specified in config
@@ -147,7 +151,7 @@ def _setup_security_logging_middleware(app: FastAPI, config: GlobalConfig) -> No
         logger.info("Security event logging middleware skipped (disabled)")
 
 
-def _setup_error_handling_middleware(app: FastAPI, config: GlobalConfig) -> None:
+def _setup_error_handling_middleware(app: FastAPI, config: AppConfig) -> None:
     """Setup global error handling middleware"""
     
     app.add_middleware(

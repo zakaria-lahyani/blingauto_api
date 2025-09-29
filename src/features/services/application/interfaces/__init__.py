@@ -1,3 +1,0 @@
-"""
-Services application interfaces
-"""

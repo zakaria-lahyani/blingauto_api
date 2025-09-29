@@ -12,7 +12,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from src.shared.config import LoggingConfig
+from src.shared.simple_config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log all requests and responses"""
     
-    def __init__(self, app, config: LoggingConfig):
+    def __init__(self, app, config: AppConfig = None):
         super().__init__(app)
         self.config = config
+        self.debug = config.debug if config else False
         logger.info("Request logging middleware initialized")
     
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -35,7 +36,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_info = await self._extract_request_info(request)
         
         # Log request start
-        if self.config.enable_request_logging:
+        if self.debug:
             logger.info(
                 f"REQUEST START: {request_info['method']} {request_info['url']} "
                 f"- Client: {request_info['client_ip']} "
@@ -83,21 +84,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Get user agent
         user_agent = request.headers.get("User-Agent", "unknown")
         
-        # Get request body if configured to log it
+        # Simplified - don't log request body for now
         request_body = None
-        if self.config.log_request_body:
-            try:
-                body = await request.body()
-                if body:
-                    # Try to parse as JSON for better logging
-                    try:
-                        request_body = json.loads(body.decode())
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        request_body = f"<binary data: {len(body)} bytes>"
-                else:
-                    request_body = "<empty>"
-            except Exception:
-                request_body = "<error reading body>"
         
         return {
             "method": request.method,
@@ -113,7 +101,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def _log_response(self, request_info: dict, response: Response, process_time: float):
         """Log response information"""
         
-        if not self.config.enable_request_logging:
+        if not self.debug:
             return
         
         # Determine log level based on status code
@@ -125,8 +113,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             log_level = logging.INFO
         
         # Check if this is a slow request
-        is_slow = process_time > self.config.slow_request_threshold
-        if is_slow and self.config.log_slow_requests:
+        is_slow = process_time > 1.0  # Simplified threshold
+        if is_slow:
             log_level = logging.WARNING
         
         # Prepare log message
@@ -142,23 +130,3 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         
         # Log the response
         logger.log(log_level, log_message)
-        
-        # Log additional details for errors
-        if response.status_code >= 400:
-            logger.log(log_level, 
-                f"REQUEST DETAILS: URL={request_info['url']}, "
-                f"Query={request_info['query_params']}, "
-                f"User-Agent={request_info['user_agent'][:50]}..."
-            )
-        
-        # Log response body if configured (be careful with sensitive data)
-        if self.config.log_response_body and response.status_code >= 400:
-            try:
-                # Only log response body for errors and if it's text-based
-                response_headers = dict(response.headers)
-                content_type = response_headers.get("content-type", "")
-                
-                if "application/json" in content_type or "text/" in content_type:
-                    logger.log(log_level, f"RESPONSE BODY: <response body logging enabled but not implemented for security>")
-            except Exception:
-                pass  # Don't fail request if logging fails

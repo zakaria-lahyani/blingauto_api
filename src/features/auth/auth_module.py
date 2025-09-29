@@ -5,76 +5,53 @@ import logging
 from typing import Dict, Any
 
 from src.features.auth.config import AuthConfig, AuthFeature
-from src.features.auth.application.services import (
-    AuthService, 
-    UserService,
-    EmailVerificationService,
-    PasswordResetService,
-    AccountLockoutService,
-    TokenRotationService,
-    AdminSetupService
-)
+from src.features.auth.services_factory import AuthServicesFactory
 
 logger = logging.getLogger(__name__)
 
 
 class AuthModule:
-    """Authentication Feature Module"""
+    """Authentication Feature Module - Clean and Simple"""
     
     def __init__(self, config: AuthConfig):
         self.config = config
         self._initialized = False
-        
-        # Services
-        self._auth_service = None
-        self._user_service = None
-        self._email_verification_service = None
-        self._password_reset_service = None
-        self._account_lockout_service = None
-        self._token_rotation_service = None
-        self._admin_setup_service = None
+        self._services_factory = AuthServicesFactory(config)
     
     @property
-    def auth_service(self) -> AuthService:
-        if self._auth_service is None:
-            self._auth_service = AuthService(self.config)
-        return self._auth_service
+    def auth_service(self):
+        """Get AuthService via factory"""
+        return self._services_factory.get_auth_service()
     
     @property
-    def user_service(self) -> UserService:
-        if self._user_service is None:
-            self._user_service = UserService(self.config)
-        return self._user_service
+    def user_service(self):
+        """Get UserService via factory"""
+        return self._services_factory.get_user_service()
     
     @property
-    def email_verification_service(self) -> EmailVerificationService:
-        if self._email_verification_service is None:
-            self._email_verification_service = EmailVerificationService(self.config)
-        return self._email_verification_service
+    def email_verification_service(self):
+        """Get EmailVerificationService via factory"""
+        return self._services_factory.get_email_verification_service()
     
     @property
-    def password_reset_service(self) -> PasswordResetService:
-        if self._password_reset_service is None:
-            self._password_reset_service = PasswordResetService(self.config)
-        return self._password_reset_service
+    def password_reset_service(self):
+        """Get PasswordResetService via factory"""
+        return self._services_factory.get_password_reset_service()
     
     @property
-    def account_lockout_service(self) -> AccountLockoutService:
-        if self._account_lockout_service is None:
-            self._account_lockout_service = AccountLockoutService(self.config)
-        return self._account_lockout_service
+    def account_lockout_service(self):
+        """Get AccountLockoutService via factory"""
+        return self._services_factory.get_account_lockout_service()
     
     @property
-    def token_rotation_service(self) -> TokenRotationService:
-        if self._token_rotation_service is None:
-            self._token_rotation_service = TokenRotationService(self.config)
-        return self._token_rotation_service
+    def token_rotation_service(self):
+        """Get TokenRotationService via factory"""
+        return self._services_factory.get_token_rotation_service()
     
     @property
-    def admin_setup_service(self) -> AdminSetupService:
-        if self._admin_setup_service is None:
-            self._admin_setup_service = AdminSetupService(self.config)
-        return self._admin_setup_service
+    def admin_setup_service(self):
+        """Get AdminSetupService via factory"""
+        return self._services_factory.get_admin_setup_service()
     
     def setup(self, app, prefix: str = "/auth"):
         """Setup auth module with FastAPI app"""
@@ -101,6 +78,9 @@ class AuthModule:
             return
         
         try:
+            # Initialize email service with SMTP configuration
+            await self._setup_email_service()
+            
             # Initialize database tables
             await self._setup_database()
             
@@ -114,6 +94,32 @@ class AuthModule:
         except Exception as e:
             logger.error(f"Failed to initialize auth module: {e}")
             raise
+    
+    async def _setup_email_service(self):
+        """Initialize email service with SMTP configuration"""
+        from src.shared.services.email_service import init_email_service
+        
+        # Convert auth config to email service config
+        email_config = {
+            "email_provider": self.config.email_provider,
+            "smtp_host": self.config.smtp_host,
+            "smtp_port": self.config.smtp_port,
+            "smtp_username": self.config.smtp_username,
+            "smtp_password": self.config.smtp_password,
+            "smtp_use_tls": self.config.smtp_use_tls,
+            "from_email": self.config.from_email,
+            "support_email": self.config.support_email,
+            "app_name": self.config.app_name,
+            "app_url": self.config.app_url
+        }
+        
+        # Initialize the global email service
+        email_service = init_email_service(email_config)
+        
+        if self.config.email_provider == "smtp":
+            logger.info(f"Email service initialized with SMTP provider (host: {self.config.smtp_host}:{self.config.smtp_port})")
+        else:
+            logger.info(f"Email service initialized with {self.config.email_provider} provider")
     
     async def _setup_database(self):
         """Setup auth database tables - now handled centrally"""
@@ -166,6 +172,7 @@ class AuthModule:
     
     async def shutdown(self):
         """Cleanup auth module resources"""
+        self._services_factory.cleanup()
         logger.info("Auth module shutdown")
     
     @property

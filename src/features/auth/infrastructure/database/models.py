@@ -4,11 +4,13 @@ Auth database models
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from uuid import uuid4
 from typing import Optional
 
 from src.shared.database import Base
+from src.shared.utils.timestamp import db_utc_timestamp
 from src.features.auth.domain.entities import AuthUser
 from src.features.auth.domain.enums import AuthRole
 
@@ -50,9 +52,25 @@ class AuthUserModel(Base):
     last_login = Column(DateTime)
     refresh_tokens = Column(JSON, default=list)
     
-    # Timestamps
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    # Timestamps - using standardized UTC timestamps
+    created_at = Column(DateTime(timezone=True), server_default=db_utc_timestamp(), nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=db_utc_timestamp(), onupdate=db_utc_timestamp(), nullable=False)
+    
+    # Relationships - Temporarily disabled until VehicleModel and BookingModel are properly configured
+    # TODO: Re-enable once vehicle and booking models are available and properly imported
+    # vehicles = relationship(
+    #     "VehicleModel", 
+    #     back_populates="user", 
+    #     cascade="all, delete-orphan",
+    #     lazy="select"
+    # )
+    # 
+    # bookings = relationship(
+    #     "BookingModel", 
+    #     back_populates="customer",
+    #     cascade="all, delete-orphan",
+    #     lazy="select"
+    # )
     
     def to_entity(self) -> AuthUser:
         """Convert model to domain entity"""
@@ -113,7 +131,7 @@ class AuthUserModel(Base):
             updated_at=entity.updated_at
         )
     
-    def update_from_entity(self, entity: AuthUser):
+    def update_from_entity(self, entity: AuthUser) -> None:
         """Update model from entity"""
         self.email = entity.email
         self.password_hash = entity.password_hash

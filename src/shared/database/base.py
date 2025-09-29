@@ -21,6 +21,7 @@ class BaseRepository(Generic[EntityType, ModelType], ABC):
     
     def __init__(self, session: AsyncSession, model_class: type):
         self.session = session
+        self.db_session = session  # Alias for backwards compatibility
         self.model_class = model_class
     
     @abstractmethod
@@ -47,3 +48,13 @@ class BaseRepository(Generic[EntityType, ModelType], ABC):
     async def list(self, limit: int = 100, offset: int = 0) -> List[EntityType]:
         """List entities"""
         pass
+    
+    # Optional common methods that can be overridden
+    async def get_by_id(self, id: UUID) -> Optional[EntityType]:
+        """Alias for get method for backwards compatibility"""
+        return await self.get(id)
+    
+    async def exists(self, id: UUID) -> bool:
+        """Check if entity exists"""
+        entity = await self.get(id)
+        return entity is not None

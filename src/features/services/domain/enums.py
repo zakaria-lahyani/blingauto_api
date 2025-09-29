@@ -8,6 +8,7 @@ class ServiceStatus(Enum):
     """Service status enumeration"""
     ACTIVE = "active"
     INACTIVE = "inactive"
+    DELETED = "deleted"
 
 
 class CategoryStatus(Enum):

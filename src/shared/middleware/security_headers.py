@@ -9,7 +9,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from src.shared.config import SecurityConfig
+from src.shared.simple_config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware to add security headers to all responses"""
     
-    def __init__(self, app, config: SecurityConfig):
+    def __init__(self, app, config: AppConfig = None):
         super().__init__(app)
         self.config = config
         logger.info("Security headers middleware initialized")
@@ -27,19 +27,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         
         response = await call_next(request)
         
-        # X-Content-Type-Options: Prevent MIME type sniffing
-        if self.config.enable_x_content_type_options:
-            response.headers["X-Content-Type-Options"] = "nosniff"
-        
-        # X-Frame-Options: Prevent clickjacking
-        if self.config.enable_x_frame_options:
-            response.headers["X-Frame-Options"] = "DENY"
-        
-        # X-XSS-Protection: Enable XSS filtering
-        if self.config.enable_x_xss_protection:
-            response.headers["X-XSS-Protection"] = "1; mode=block"
-        
-        # Referrer-Policy: Control referrer information
+        # Basic security headers (always applied)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         
         # Permissions-Policy: Control browser features
@@ -47,17 +38,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "geolocation=(), microphone=(), camera=(), "
             "payment=(), usb=(), magnetometer=(), gyroscope=()"
         )
-        
-        # Strict-Transport-Security: Force HTTPS
-        if self.config.enable_hsts:
-            hsts_value = f"max-age={self.config.hsts_max_age}"
-            if self.config.hsts_include_subdomains:
-                hsts_value += "; includeSubDomains"
-            response.headers["Strict-Transport-Security"] = hsts_value
-        
-        # Content-Security-Policy: Prevent XSS and injection attacks
-        if self.config.enable_csp:
-            response.headers["Content-Security-Policy"] = self.config.csp_policy
         
         # Additional security headers
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"

@@ -20,6 +20,14 @@ from src.features.auth.presentation.api.dependencies import (
 from src.features.auth.domain.entities import AuthUser
 from src.features.auth.domain.enums import AuthRole
 from src.features.auth.config import AuthFeature
+from src.shared.exceptions import (
+    ValidationError,
+    ResourceNotFoundError,
+    BusinessLogicError,
+    InternalServerError,
+    ErrorMessages,
+    ErrorDetail
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +35,7 @@ logger = logging.getLogger(__name__)
 def create_auth_router(auth_module) -> APIRouter:
     """Create auth router with all endpoints"""
     
-    router = APIRouter()
+    router = APIRouter(prefix="/auth", tags=["Authentication"])
     
     # Dependencies
     current_user = get_current_active_user(auth_module)
@@ -37,7 +45,7 @@ def create_auth_router(auth_module) -> APIRouter:
     
     @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
     async def register(data: UserRegister, request: Request):
-        """Register new user"""
+        """Register new user with enhanced error handling"""
         try:
             user = await auth_module.auth_service.register_user(
                 email=data.email,
@@ -49,24 +57,88 @@ def create_auth_router(auth_module) -> APIRouter:
             
             # Send verification email if enabled
             if auth_module.config.is_feature_enabled(AuthFeature.EMAIL_VERIFICATION):
-                await auth_module.email_verification_service.send_verification_email(user)
+                try:
+                    await auth_module.email_verification_service.send_verification_email(user)
+                except Exception as email_error:
+                    logger.warning(f"Failed to send verification email for user {user.id}: {email_error}")
+                    # Continue with registration even if email fails
             
+            logger.info(f"User registered successfully: {user.id}")
             return UserResponse.from_entity(user)
             
         except ValueError as e:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+            # Handle validation errors
+            error_message = str(e)
+            logger.warning(f"Registration validation failed: {error_message}")
+            
+            # Check for specific business logic errors
+            if error_message == "EMAIL_ALREADY_EXISTS":
+                raise BusinessLogicError(
+                    "A user with this email address already exists",
+                    error_code="EMAIL_ALREADY_EXISTS",
+                    details=[ErrorDetail(field="email", message="This email is already registered", code="EMAIL_ALREADY_EXISTS")]
+                )
+            elif error_message == "PHONE_ALREADY_EXISTS":
+                raise BusinessLogicError(
+                    "A user with this phone number already exists",
+                    error_code="PHONE_ALREADY_EXISTS",
+                    details=[ErrorDetail(field="phone", message="This phone number is already registered", code="PHONE_ALREADY_EXISTS")]
+                )
+            elif error_message == "USER_ALREADY_EXISTS":
+                raise BusinessLogicError(
+                    "A user with this information already exists. Please use different email or phone number.",
+                    error_code="USER_ALREADY_EXISTS",
+                    details=[ErrorDetail(message="User with this information already exists", code="USER_ALREADY_EXISTS")]
+                )
+            elif "password" in error_message.lower():
+                raise ValidationError(
+                    ErrorMessages.VALIDATION_PASSWORD_WEAK,
+                    [ErrorDetail(field="password", message=error_message)]
+                )
+            else:
+                raise ValidationError(error_message)
+                
         except Exception as e:
-            logger.error(f"Registration failed: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Registration failed")
+            # Handle database constraint violations and other errors
+            error_str = str(e).lower()
+            
+            # Check for database constraint violations that might have slipped through
+            if "unique constraint" in error_str or "duplicate" in error_str or "already exists" in error_str:
+                if "email" in error_str:
+                    raise BusinessLogicError(
+                        "A user with this email address already exists",
+                        error_code="EMAIL_ALREADY_EXISTS",
+                        details=[ErrorDetail(field="email", message="This email is already registered", code="EMAIL_ALREADY_EXISTS")]
+                    )
+                elif "phone" in error_str:
+                    raise BusinessLogicError(
+                        "A user with this phone number already exists",
+                        error_code="PHONE_ALREADY_EXISTS",
+                        details=[ErrorDetail(field="phone", message="This phone number is already registered", code="PHONE_ALREADY_EXISTS")]
+                    )
+                else:
+                    raise BusinessLogicError(
+                        "A user with this information already exists. Please use different email or phone number.",
+                        error_code="USER_ALREADY_EXISTS",
+                        details=[ErrorDetail(message="User with this information already exists", code="USER_ALREADY_EXISTS")]
+                    )
+            
+            # Log unexpected errors with full traceback
+            import traceback
+            logger.error(f"Registration failed with unexpected error: {e}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise InternalServerError(f"Failed to create user account: {str(e)}")
     
     @router.post("/login", response_model=TokenResponse)
     async def login(data: UserLogin, request: Request):
-        """Login user"""
+        """Login user with enhanced error handling"""
         try:
             user, access_token, refresh_token = await auth_module.auth_service.authenticate_user(
                 email=data.email,
                 password=data.password
             )
+            
+            logger.info(f"User {user.id} logged in successfully from {request.client.host if request.client else 'unknown'}")
             
             return TokenResponse(
                 access_token=access_token,
@@ -75,10 +147,31 @@ def create_auth_router(auth_module) -> APIRouter:
             )
             
         except ValueError as e:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+            # Handle authentication failures
+            error_message = str(e).lower()
+            logger.warning(f"Login failed for email {data.email}: {e}")
+            
+            if "email verification required" in error_message:
+                raise BusinessLogicError(
+                    "Email verification required. Please check your email and verify your account before logging in.",
+                    error_code="EMAIL_VERIFICATION_REQUIRED",
+                    details=[ErrorDetail(field="email", message="Please verify your email address to log in", code="EMAIL_VERIFICATION_REQUIRED")]
+                )
+            elif "password" in error_message:
+                from src.shared.exceptions import AuthenticationError
+                raise AuthenticationError("Invalid email or password")
+            elif "not found" in error_message or "invalid" in error_message:
+                from src.shared.exceptions import AuthenticationError
+                raise AuthenticationError("Invalid email or password")
+            elif "inactive" in error_message or "disabled" in error_message:
+                raise BusinessLogicError(ErrorMessages.BUSINESS_INACTIVE_USER)
+            else:
+                from src.shared.exceptions import AuthenticationError
+                raise AuthenticationError("Authentication failed")
+                
         except Exception as e:
-            logger.error(f"Login failed: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed")
+            logger.error(f"Login failed with unexpected error: {e}")
+            raise InternalServerError("Login service temporarily unavailable")
     
     @router.post("/refresh", response_model=TokenResponse)
     async def refresh_token(data: RefreshTokenRequest):
@@ -145,9 +238,38 @@ def create_auth_router(auth_module) -> APIRouter:
             logger.error(f"Email verification request failed: {e}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send verification email")
     
+    @router.get("/verify-email/confirm")
+    async def verify_email_with_link(token: str):
+        """Verify email with token from email link (GET request)"""
+        if not auth_module.config.is_feature_enabled(AuthFeature.EMAIL_VERIFICATION):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature not enabled")
+        
+        try:
+            user = await auth_module.email_verification_service.verify_email_with_token(token)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid or expired verification token"
+                )
+            
+            return {
+                "success": True,
+                "message": "Email verified successfully",
+                "user_id": str(user.id),
+                "email": user.email,
+                "verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Email verification failed: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Email verification failed")
+
     @router.post("/verify-email/confirm", response_model=MessageResponse)
     async def confirm_email_verification(data: EmailVerificationConfirm):
-        """Confirm email verification"""
+        """Confirm email verification (POST with JSON - for API clients)"""
         if not auth_module.config.is_feature_enabled(AuthFeature.EMAIL_VERIFICATION):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature not enabled")
         
@@ -275,7 +397,7 @@ def create_auth_router(auth_module) -> APIRouter:
             
             return UserListResponse(
                 users=user_responses,
-                total=len(user_responses),  # TODO: Implement proper count
+                total=len(user_responses),
                 limit=limit,
                 offset=offset
             )
@@ -365,4 +487,25 @@ def create_auth_router(auth_module) -> APIRouter:
         """Get auth feature status"""
         return AuthFeatureStatus(**auth_module.get_feature_status())
     
+    @router.get("/verification-status/{email}")
+    async def get_verification_status(email: str):
+        """Get email verification status for a user"""
+        from src.features.auth.infrastructure.database.repositories import AuthUserRepository
+        from src.shared.simple_database import get_db_session
+        
+        async with get_db_session() as session:
+            user_repo = AuthUserRepository(session)
+            user = await user_repo.get_by_email(email.lower().strip())
+            
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            return {
+                "email": user.email,
+                "email_verified": user.email_verified,
+                "email_verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None,
+                "has_verification_token": bool(user.email_verification_token),
+                "token_expires": user.email_verification_expires.isoformat() if user.email_verification_expires else None
+            }
+
     return router

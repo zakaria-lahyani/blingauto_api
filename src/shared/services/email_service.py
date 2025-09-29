@@ -367,6 +367,13 @@ def init_email_service(config: Dict[str, Any]) -> EmailService:
 
 def get_email_service() -> EmailService:
     """Get global email service instance"""
+    global _email_service
     if _email_service is None:
-        raise RuntimeError("Email service not initialized. Call init_email_service() first.")
+        # Auto-initialize with default mock config for development
+        logger.warning("Email service not initialized, using default mock configuration")
+        default_config = {
+            "email_provider": "mock",
+            "from_email": "noreply@carwash.com"
+        }
+        _email_service = EmailService(default_config)
     return _email_service

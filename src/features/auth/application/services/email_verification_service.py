@@ -12,6 +12,7 @@ from src.features.auth.infrastructure.database.repositories import AuthUserRepos
 from src.features.auth.infrastructure.security.token_generator import generate_verification_token, hash_token
 from src.shared.events import get_event_bus
 from src.shared.services.email_service import get_email_service
+from src.shared.simple_database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,6 @@ class EmailVerificationService:
     
     def __init__(self, config: AuthConfig):
         self.config = config
-        self._user_repo = AuthUserRepository()
         self._event_bus = get_event_bus()
     
     async def send_verification_email(self, user: AuthUser) -> bool:
@@ -42,7 +42,10 @@ class EmailVerificationService:
             # Store hashed token in user
             token_hash = hash_token(token)
             user.set_email_verification_token(token_hash, expires_at)
-            await self._user_repo.update(user)
+            
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                await user_repo.update(user)
             
             # Send email (this would integrate with email provider)
             await self._send_email(user, token)
@@ -63,21 +66,24 @@ class EmailVerificationService:
             # Hash the provided token to match stored version
             token_hash = hash_token(token)
             
-            # Find user with this token
-            user = await self._user_repo.get_by_verification_token(token_hash)
-            
-            if not user:
-                logger.warning("Invalid verification token attempted")
-                return None
-            
-            # Check if token is expired
-            if user.email_verification_expires and datetime.utcnow() > user.email_verification_expires:
-                logger.warning(f"Expired verification token for user: {user.email}")
-                return None
-            
-            # Verify email
-            user.verify_email()
-            updated_user = await self._user_repo.update(user)
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                
+                # Find user with this token
+                user = await user_repo.get_by_verification_token(token_hash)
+                
+                if not user:
+                    logger.warning("Invalid verification token attempted")
+                    return None
+                
+                # Check if token is expired
+                if user.email_verification_expires and datetime.utcnow() > user.email_verification_expires:
+                    logger.warning(f"Expired verification token for user: {user.email}")
+                    return None
+                
+                # Verify email
+                user.verify_email()
+                updated_user = await user_repo.update(user)
             
             # Send welcome email
             await self._send_welcome_email(user)
@@ -98,17 +104,19 @@ class EmailVerificationService:
     
     async def resend_verification_email(self, email: str) -> bool:
         """Resend verification email"""
-        user = await self._user_repo.get_by_email(email.lower().strip())
-        
-        if not user:
-            logger.warning(f"Verification resend requested for non-existent email: {email}")
-            return True  # Don't reveal if email exists
-        
-        if user.email_verified:
-            logger.info(f"Verification resend requested for already verified email: {email}")
-            return True  # Don't reveal verification status
-        
-        return await self.send_verification_email(user)
+        async with get_db_session() as session:
+            user_repo = AuthUserRepository(session)
+            user = await user_repo.get_by_email(email.lower().strip())
+            
+            if not user:
+                logger.warning(f"Verification resend requested for non-existent email: {email}")
+                return True  # Don't reveal if email exists
+            
+            if user.email_verified:
+                logger.info(f"Verification resend requested for already verified email: {email}")
+                return True  # Don't reveal verification status
+            
+            return await self.send_verification_email(user)
     
     async def _check_rate_limit(self, user: AuthUser) -> bool:
         """Check if user has exceeded verification email rate limit"""
@@ -126,9 +134,9 @@ class EmailVerificationService:
     async def _send_email(self, user: AuthUser, token: str):
         """Send verification email using the email service"""
         try:
-            # Build verification link
-            base_url = self.config.app_url or "https://carwash.com"
-            verification_link = f"{base_url}/verify-email?token={token}"
+            # Build verification link for API endpoint
+            base_url = self.config.app_url or "http://localhost:8000"
+            verification_link = f"{base_url}/auth/verify-email/confirm?token={token}"
             
             # Get email service
             email_service = get_email_service()

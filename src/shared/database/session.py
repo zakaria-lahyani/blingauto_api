@@ -117,8 +117,20 @@ async def get_db_session() -> AsyncSession:
 
 async def get_db() -> AsyncSession:
     """FastAPI dependency for getting database session"""
-    async with get_db_session() as session:
-        yield session
+    global _async_session_maker
+    
+    if _async_session_maker is None:
+        init_database()
+    
+    async with _async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 async def create_all_tables():
@@ -146,9 +158,14 @@ def _import_all_models():
         from src.features.services.infrastructure.database.models import ServiceCategoryModel, ServiceModel
         logger.info("Services models imported successfully")
         
-        # TODO: Add imports for future feature models here
-        # from src.features.bookings.infrastructure.database.models import BookingModel
-        # from src.features.payments.infrastructure.database.models import PaymentModel
+        # Import booking models
+        from src.features.bookings.infrastructure.database.models import BookingModel, BookingServiceModel, BookingEventModel
+        logger.info("Booking models imported successfully")
+        
+        # Import vehicle models
+        from src.features.vehicles.infrastructure.database.models import VehicleModel
+        logger.info("Vehicle models imported successfully")
+        
         
     except ImportError as e:
         logger.warning(f"Some models could not be imported: {e}")

@@ -10,6 +10,7 @@ from src.features.auth.domain.entities import AuthUser
 from src.features.auth.domain.enums import AuthRole
 from src.features.auth.infrastructure.database.repositories import AuthUserRepository
 from src.features.auth.infrastructure.security import hash_password
+from src.shared.simple_database import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,6 @@ class AdminSetupService:
     
     def __init__(self, config: AuthConfig):
         self.config = config
-        self._user_repo = AuthUserRepository()
     
     async def ensure_admin_exists(self) -> bool:
         """Ensure admin user exists, create if needed"""
@@ -57,7 +57,9 @@ class AdminSetupService:
                 email_verified=True  # Admin doesn't need email verification
             )
             
-            created_user = await self._user_repo.create(admin_user)
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                created_user = await user_repo.create(admin_user)
             
             logger.info(f"✅ Admin user created: {admin_email}")
             logger.info(f"   User ID: {created_user.id}")
@@ -75,8 +77,10 @@ class AdminSetupService:
     async def _admin_exists(self) -> bool:
         """Check if any admin user exists"""
         try:
-            admins = await self._user_repo.list_by_role(AuthRole.ADMIN, limit=1)
-            return len(admins) > 0
+            async with get_db_session() as session:
+                user_repo = AuthUserRepository(session)
+                admins = await user_repo.list_by_role(AuthRole.ADMIN, limit=1)
+                return len(admins) > 0
         except Exception as e:
             logger.error(f"Failed to check admin existence: {e}")
             return False

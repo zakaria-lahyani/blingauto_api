@@ -11,6 +11,7 @@ from uuid import uuid4
 from typing import Optional, List
 
 from src.shared.database import Base
+from src.shared.utils.timestamp import db_utc_timestamp
 from src.features.services.domain.entities import ServiceCategory, Service
 from src.features.services.domain.enums import ServiceStatus, CategoryStatus
 
@@ -27,9 +28,9 @@ class ServiceCategoryModel(Base):
     description = Column(Text)
     status = Column(String(20), nullable=False, default=CategoryStatus.ACTIVE.value)
     
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    # Timestamps - using standardized UTC timestamps
+    created_at = Column(DateTime(timezone=True), server_default=db_utc_timestamp(), nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=db_utc_timestamp(), onupdate=db_utc_timestamp(), nullable=False)
     
     # Relationships
     services = relationship("ServiceModel", back_populates="category", cascade="all, delete-orphan")
@@ -81,9 +82,9 @@ class ServiceModel(Base):
     status = Column(String(20), nullable=False, default=ServiceStatus.ACTIVE.value)
     popular = Column(Boolean, default=False, nullable=False)
     
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    # Timestamps - using standardized UTC timestamps
+    created_at = Column(DateTime(timezone=True), server_default=db_utc_timestamp(), nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=db_utc_timestamp(), onupdate=db_utc_timestamp(), nullable=False)
     
     # Relationships
     category = relationship("ServiceCategoryModel", back_populates="services")

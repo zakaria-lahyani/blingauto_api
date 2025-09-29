@@ -94,7 +94,7 @@ class AuthConfig(BaseSettings):
     log_successful_auth: bool = Field(default=True)
     
     # Email provider settings
-    email_provider: str = Field(default="mock", description="Email provider type: smtp, mock")
+    email_provider: str = Field(default="smtp", description="Email provider type: smtp, mock")
     smtp_host: Optional[str] = Field(default=None, description="SMTP server host")
     smtp_port: int = Field(default=587, description="SMTP server port")
     smtp_username: Optional[str] = Field(default=None, description="SMTP username")
@@ -103,7 +103,7 @@ class AuthConfig(BaseSettings):
     from_email: str = Field(default="noreply@carwash.com", description="From email address")
     support_email: str = Field(default="support@carwash.com", description="Support email address")
     app_name: str = Field(default="Car Wash Service", description="Application name for emails")
-    app_url: str = Field(default="https://carwash.com", description="Application URL for links")
+    app_url: str = Field(default="http://localhost:8000", description="Application URL for links")
     
     # Admin setup (will be loaded from secrets)
     initial_admin_email: Optional[str] = Field(default=None)
@@ -199,10 +199,15 @@ class AuthConfig(BaseSettings):
     
     @validator('email_provider')
     def validate_email_provider(cls, v, values):
-        """Warn if using mock email provider in production"""
-        environment = values.get('environment', 'development')
-        if v == "mock" and environment == "production":
-            logger.warning("Using mock email provider in production environment")
+        """Validate email provider configuration"""
+        if v == "smtp":
+            # Log SMTP configuration info
+            logger.info("Email provider set to SMTP - ensure SMTP credentials are configured")
+        elif v == "mock":
+            logger.warning("Using mock email provider - emails will be logged only, not sent")
+        else:
+            logger.warning(f"Unknown email provider '{v}', falling back to mock")
+            return "mock"
         return v
     
     async def load_secrets(self) -> None:

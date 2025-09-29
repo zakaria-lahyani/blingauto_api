@@ -1,333 +1,398 @@
 #!/usr/bin/env python3
 """
-Standalone Car Wash API with Feature-Based Auth Module
+Car Wash API - Clean Architecture
 
-This demonstrates how to integrate the refactored auth module
-into any FastAPI application with just a few lines of code.
+A clean, maintainable, and scalable API built with feature-based architecture,
+auto-discovery, and minimal dependencies.
 
-Usage:
-    python main.py
-
-The auth module provides complete authentication with:
-- User registration/login with email verification
-- Password reset functionality
-- Account lockout protection 
-- JWT token rotation
-- Role-based access control (Admin, Manager, Washer, Client)
-- Rate limiting per user role
-- Admin setup automation
+Key Principles Applied:
+- Single Responsibility Principle
+- Open/Closed Principle  
+- Dependency Inversion Principle
+- Clean Architecture
+- SOLID Principles
 """
 
 import sys
-import asyncio
-import uvicorn
-import os
+import logging
 from pathlib import Path
-from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, List
 
-# Load environment variables from the refactored_api directory
-current_dir = Path(__file__).parent
-env_file = current_dir / ".env"
-print(f"[DEBUG] Loading env from: {env_file}")
-print(f"[DEBUG] Env file exists: {env_file.exists()}")
-
-# Force override system environment with .env file values
-load_dotenv(env_file, override=True)
-
-# Explicitly set critical environment variables from .env to override system defaults
-if env_file.exists():
-    with open(env_file, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
-                key = key.strip()
-                value = value.strip()
-                if key == 'AUTH_JWT_SECRET_KEY':
-                    os.environ[key] = value
-                    print(f"[DEBUG] Override {key} from .env file")
-print(f"[DEBUG] Current AUTH_JWT_SECRET_KEY: {os.environ.get('AUTH_JWT_SECRET_KEY', 'NOT SET')[:20]}...")
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from fastapi import FastAPI, Depends
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from src.shared.simple_config import get_config
+from src.shared.simple_database import (
+    init_database, 
+    create_tables, 
+    close_database, 
+    get_db_session
+)
+from src.shared.simple_events import publish_event
+from src.shared.feature_discovery import FeatureInfo, get_enabled_features
+# Skip complex middleware for now - use simple error handling
 
-# Import the auth module - This is all you need!
-from src.features.auth import AuthModule, AuthConfig, AuthRole, AuthUser
-from src.features.services import services_module
-from src.shared.database import init_database
-
-# Import global middleware setup
-from src.shared.middleware import setup_global_middleware
-from src.shared.config import GlobalConfig
-
-# Import services
-from src.shared.services.email_service import init_email_service
-from src.shared.services.secrets_manager import init_secrets_manager
-from src.shared.services.cache_service import init_cache_service
-from src.shared.services.rate_limiter import init_rate_limiter
-from src.shared.services.encryption_service import init_encryption_service
-
-# Global auth module instance
-auth_module = None
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan events"""
-    # Startup
-    print("[STARTUP] Initializing services...")
+class ApplicationLifecycleManager:
+    """Manages application startup and shutdown lifecycle"""
     
-    # Initialize secrets manager first
-    init_secrets_manager()
-    print("[SUCCESS] Secrets manager initialized")
+    def __init__(self):
+        self.features: List[FeatureInfo] = []
+        self.initialized = False
     
-    # Load secrets into auth config
-    await auth_module.config.load_secrets()
-    print("[SUCCESS] Secrets loaded")
+    async def startup(self) -> None:
+        """Execute startup sequence"""
+        try:
+            logger.info("🚀 Starting Car Wash API - Clean Architecture")
+            
+            await self._initialize_configuration()
+            await self._initialize_database()
+            await self._discover_and_initialize_features()
+            await self._publish_startup_event()
+            
+            self.initialized = True
+            logger.info("🎉 Application started successfully")
+            
+        except Exception as e:
+            logger.error(f"💥 Startup failed: {e}", exc_info=True)
+            raise
     
-    # Validate configuration
-    auth_module.config.validate_required_secrets()
-    is_ready, issues = auth_module.config.is_production_ready()
-    if not is_ready:
-        print(f"[WARNING] Configuration issues: {issues}")
-    else:
-        print("[SUCCESS] Configuration is production ready")
+    async def shutdown(self) -> None:
+        """Execute shutdown sequence"""
+        try:
+            logger.info("🛑 Shutting down application...")
+            
+            await self._cleanup_features()
+            await self._close_database()
+            await self._publish_shutdown_event()
+            
+            logger.info("✅ Application shutdown completed")
+            
+        except Exception as e:
+            logger.error(f"❌ Shutdown error: {e}", exc_info=True)
     
-    # Create all database tables from all features
-    from src.shared.database import create_all_tables
-    await create_all_tables()
-    print("[SUCCESS] All database tables created successfully")
+    async def _initialize_configuration(self) -> None:
+        """Initialize application configuration"""
+        config = get_config()
+        logger.info(f"📋 Environment: {config.environment}")
+        logger.info(f"🔧 Debug mode: {config.debug}")
     
-    # Initialize auth module
-    await auth_module.initialize()
-    print("[SUCCESS] Auth module initialized and ready!")
+    async def _initialize_database(self) -> None:
+        """Initialize database connection and tables"""
+        init_database()
+        await create_tables()
+        logger.info("🗄️ Database initialized")
+        
+        # Test database connection
+        from sqlalchemy import text
+        async with get_db_session() as session:
+            await session.execute(text("SELECT 1"))
+        logger.info("✅ Database connection verified")
     
-    # Initialize services module
-    await services_module.initialize()
-    print("[SUCCESS] Services module initialized and ready!")
+    async def _discover_and_initialize_features(self) -> None:
+        """Discover and initialize all enabled features"""
+        self.features = get_enabled_features()
+        logger.info(f"🔍 Discovered {len(self.features)} enabled features: {[f.name for f in self.features]}")
+        
+        for feature in self.features:
+            await self._initialize_feature(feature)
     
-    print(f"[DOCS] API documentation: http://localhost:8001/docs")
-    print(f"[AUTH] Auth endpoints available at: /auth/*")
-    print(f"[SERVICES] Services endpoints available at: /services/*")
-    print(f"[FEATURES] Features enabled: {list(auth_module.get_feature_status().keys())}")
+    async def _initialize_feature(self, feature: FeatureInfo) -> None:
+        """Initialize a single feature"""
+        try:
+            await feature.initialize()
+            logger.info(f"✅ Feature '{feature.name}' initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize feature '{feature.name}': {e}")
+            raise
     
-    yield
+    async def _cleanup_features(self) -> None:
+        """Clean up all features"""
+        for feature in self.features:
+            try:
+                await feature.shutdown()
+                logger.info(f"🧹 Feature '{feature.name}' cleaned up")
+            except Exception as e:
+                logger.error(f"⚠️ Error cleaning up feature '{feature.name}': {e}")
     
-    # Shutdown
-    print("[SHUTDOWN] Cleaning up services...")
-    # Add cleanup code here if needed
+    async def _close_database(self) -> None:
+        """Close database connections"""
+        await close_database()
+        logger.info("🗄️ Database connections closed")
+    
+    async def _publish_startup_event(self) -> None:
+        """Publish application startup event"""
+        config = get_config()
+        await publish_event("app.started", {
+            "features": [f.name for f in self.features],
+            "environment": config.environment,
+            "version": config.version
+        }, source="application")
+    
+    async def _publish_shutdown_event(self) -> None:
+        """Publish application shutdown event"""
+        await publish_event("app.stopped", {
+            "features": [f.name for f in self.features]
+        }, source="application")
 
 
-def create_app() -> FastAPI:
-    """Create FastAPI app with auth module integrated"""
+class FeatureRouterManager:
+    """Manages feature router registration"""
     
-    # Create FastAPI app
+    def __init__(self, app: FastAPI):
+        self.app = app
+    
+    def register_feature_routers(self, features: List[FeatureInfo]) -> None:
+        """Register routers for all features"""
+        for feature in features:
+            self._register_feature_router(feature)
+    
+    def _register_feature_router(self, feature: FeatureInfo) -> None:
+        """Register router for a single feature"""
+        try:
+            router = feature.get_router()
+            if router is None:
+                logger.warning(f"⚠️ Feature '{feature.name}' has no router")
+                return
+            
+            prefix = self._determine_router_prefix(router, feature)
+            self.app.include_router(
+                router,
+                prefix=prefix if not router.prefix else ""
+            )
+            logger.info(f"📍 Router for '{feature.name}' included with prefix '{prefix}'")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to include router for feature '{feature.name}': {e}")
+    
+    def _determine_router_prefix(self, router, feature: FeatureInfo) -> str:
+        """Determine the appropriate prefix for a router"""
+        if hasattr(router, 'prefix') and router.prefix:
+            return router.prefix
+        return f"/{feature.name}"
+
+
+def create_lifespan_manager(lifecycle_manager: ApplicationLifecycleManager):
+    """Create lifespan context manager"""
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        await lifecycle_manager.startup()
+        yield
+        await lifecycle_manager.shutdown()
+    
+    return lifespan
+
+
+def configure_error_handling(app: FastAPI) -> None:
+    """Configure basic error handling"""
+    config = get_config()
+    
+    # First, handle our standardized exceptions
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        """Handle HTTP exceptions"""
+        logger.warning(f"HTTP exception in {request.method} {request.url}: {exc.detail}")
+        
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "error": exc.detail,
+                "status_code": exc.status_code,
+                "timestamp": "2025-09-29T00:00:00Z",
+                "path": str(request.url.path)
+            }
+        )
+    
+    # Handle our custom standardized exceptions
+    try:
+        from src.shared.exceptions import (
+            ValidationError, AuthenticationError, AuthorizationError, 
+            ResourceNotFoundError, BusinessLogicError, InternalServerError
+        )
+        
+        @app.exception_handler(ValidationError)
+        async def validation_error_handler(request: Request, exc: ValidationError):
+            logger.warning(f"Validation error in {request.method} {request.url}: {exc.detail}")
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        
+        @app.exception_handler(AuthenticationError)
+        async def auth_error_handler(request: Request, exc: AuthenticationError):
+            logger.warning(f"Auth error in {request.method} {request.url}: {exc.detail}")
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        
+        @app.exception_handler(BusinessLogicError)
+        async def business_error_handler(request: Request, exc: BusinessLogicError):
+            logger.warning(f"Business logic error in {request.method} {request.url}: {exc.detail}")
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        
+        @app.exception_handler(InternalServerError)
+        async def internal_error_handler(request: Request, exc: InternalServerError):
+            logger.error(f"Internal error in {request.method} {request.url}: {exc.detail}")
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        
+        logger.info("✅ Standardized exception handlers configured")
+        
+    except ImportError as e:
+        logger.warning(f"Could not import standardized exceptions: {e}")
+    
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        """Handle unexpected exceptions with detailed debugging"""
+        logger.error(f"Unhandled exception in {request.method} {request.url}: {exc}", exc_info=True)
+        
+        # Provide detailed error information for debugging
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": "Internal server error",
+                "message": str(exc) if config.debug else "An unexpected error occurred",
+                "type": type(exc).__name__,
+                "status_code": 500,
+                "timestamp": "2025-09-29T00:00:00Z",  # Simplified timestamp
+                "path": str(request.url.path)
+            }
+        )
+    
+    logger.info("✅ Basic error handling configured")
+
+
+def create_health_endpoints(app: FastAPI, lifecycle_manager: ApplicationLifecycleManager) -> None:
+    """Create health check and info endpoints"""
+    
+    @app.get("/")
+    async def api_info():
+        """API information and feature status"""
+        config = get_config()
+        
+        return {
+            "name": config.app_name,
+            "version": config.version,
+            "environment": config.environment,
+            "architecture": "Clean Architecture with Auto-Discovery",
+            "features": {
+                "enabled": [f.name for f in lifecycle_manager.features],
+                "total": len(lifecycle_manager.features)
+            },
+            "principles": [
+                "Single Responsibility",
+                "Open/Closed",
+                "Dependency Inversion",
+                "Clean Architecture"
+            ],
+            "endpoints": {
+                "docs": "/docs",
+                "health": "/health",
+                "events": "/events/stats"
+            }
+        }
+    
+    @app.get("/health")
+    async def health_check():
+        """Comprehensive health check"""
+        try:
+            config = get_config()
+            
+            # Test database
+            from sqlalchemy import text
+            async with get_db_session() as session:
+                await session.execute(text("SELECT 1"))
+            
+            return {
+                "status": "healthy",
+                "timestamp": "2025-01-28T00:00:00Z",
+                "environment": config.environment,
+                "version": config.version,
+                "features": {
+                    "count": len(lifecycle_manager.features),
+                    "enabled": [f.name for f in lifecycle_manager.features]
+                },
+                "database": "connected",
+                "initialized": lifecycle_manager.initialized
+            }
+            
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "unhealthy",
+                    "error": str(e),
+                    "timestamp": "2025-01-28T00:00:00Z"
+                }
+            )
+
+
+def create_application() -> FastAPI:
+    """
+    Create and configure the FastAPI application
+    
+    This function follows the Factory Pattern and applies Clean Architecture principles:
+    - Single Responsibility: Each manager handles one concern
+    - Dependency Inversion: Depends on abstractions, not concretions
+    - Open/Closed: Easy to extend with new features
+    """
+    # Initialize lifecycle manager
+    lifecycle_manager = ApplicationLifecycleManager()
+    
+    # Create FastAPI app with lifespan
     app = FastAPI(
-        lifespan=lifespan,
-        title="Car Wash API",
-        description="Feature-based API with secure distributed architecture",
-        version="2.0.0",
+        title="Car Wash API - Clean Architecture",
+        description="A clean, maintainable, and scalable car wash management API",
+        version="4.0.0",
+        lifespan=create_lifespan_manager(lifecycle_manager),
         docs_url="/docs",
         redoc_url="/redoc"
     )
     
-    # Setup global middleware (CORS, security headers, logging, etc.)
-    global_config = GlobalConfig()
-    setup_global_middleware(app, global_config)
+    # Configure error handling
+    configure_error_handling(app)
     
-    # Initialize database with SSL/TLS enforcement
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        # Fallback for development - use environment variables
-        db_user = os.getenv("POSTGRES_USER", "carwash")
-        db_password = os.getenv("POSTGRES_PASSWORD", "password")
-        db_name = os.getenv("POSTGRES_DB", "carwash_db")
-        db_host = os.getenv("POSTGRES_HOST", "localhost")
-        db_port = os.getenv("POSTGRES_PORT", "5432")
-        
-        database_url = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-        print(f"[WARNING] Using constructed database URL from environment variables")
+    # Create health endpoints
+    create_health_endpoints(app, lifecycle_manager)
     
-    init_database(database_url)
-    print(f"[SUCCESS] Database initialized with security configurations")
-    
-    # Create auth configuration
-    global auth_module
-    auth_config = AuthConfig()
-    
-    # Initialize distributed cache service
-    redis_url = auth_config.redis_url or os.getenv("REDIS_URL")
-    if redis_url:
-        cache_service = init_cache_service(redis_url)
-        print(f"[SUCCESS] Cache service initialized with Redis")
-        
-        # Initialize rate limiter with Redis
-        # We need to get the Redis client from the cache service
-        redis_client = cache_service.provider._redis if hasattr(cache_service.provider, '_redis') else None
-        if redis_client:
-            init_rate_limiter(redis_client)
-            print(f"[SUCCESS] Rate limiter initialized with Redis")
-        else:
-            # Lazy initialize Redis client for rate limiter
-            async def init_redis_rate_limiter():
-                from redis.asyncio import from_url
-                redis_client = from_url(redis_url)
-                init_rate_limiter(redis_client)
-            
-            # Store for later initialization
-            app.state.init_redis_rate_limiter = init_redis_rate_limiter
-    else:
-        # Fallback to in-memory for development
-        init_cache_service()
-        init_rate_limiter()
-        print(f"[WARNING] Using in-memory cache and rate limiting (not recommended for production)")
-    
-    # Initialize encryption service for sensitive data
-    encryption_key = os.getenv("ENCRYPTION_KEY") or os.getenv("AUTH_ENCRYPTION_KEY")
-    if encryption_key:
-        init_encryption_service(encryption_key)
-        print(f"[SUCCESS] Encryption service initialized")
-    else:
-        print(f"[WARNING] No encryption key provided - refresh tokens will not be encrypted")
-    
-    # Initialize email service with auth config
-    email_config = {
-        "email_provider": auth_config.email_provider,
-        "smtp_host": auth_config.smtp_host,
-        "smtp_port": auth_config.smtp_port,
-        "smtp_username": auth_config.smtp_username,
-        "smtp_password": auth_config.smtp_password,
-        "smtp_use_tls": auth_config.smtp_use_tls,
-        "from_email": auth_config.from_email,
-        "support_email": auth_config.support_email,
-        "app_url": auth_config.app_url
-    }
-    init_email_service(email_config)
-    print(f"[SUCCESS] Email service initialized")
-    
-    # Create and setup auth module
-    auth_module = AuthModule(auth_config)
-    auth_module.setup(app, prefix="/auth")
-    
-    # Store auth module in app state for access in endpoints
-    app.state.auth = auth_module
-    app.state.services = services_module
-    
-    # Setup services router (public endpoints only for now)
-    from src.features.services.presentation.api.public_router import router as services_router
-    app.include_router(services_router)
-    
-    # Add basic health check
-    @app.get("/health")
-    async def health_check():
-        """Health check endpoint"""
-        return {
-            "status": "healthy",
-            "auth_features": auth_module.get_feature_status(),
-            "version": "2.0.0"
-        }
-    
-    # Add root endpoint with API info
-    @app.get("/")
-    async def root():
-        """API information"""
-        return {
-            "name": "Car Wash API - Feature-Based Architecture",
-            "version": "2.0.0",
-            "architecture": "Hybrid middleware approach",
-            "auth": "Standalone auth module with feature-specific middleware",
-            "docs": "/docs",
-            "health": "/health",
-            "auth_endpoints": "/auth/docs (see /docs for full list)",
-            "features": list(auth_module.get_feature_status().keys()),
-            "middleware": {
-                "global": "CORS, Security Headers, Request Logging, Compression, Error Handling",
-                "auth_specific": "Rate Limiting, Security Logging"
-            },
-            "examples": {
-                "public": "/",
-                "authenticated": "/profile",
-                "admin_only": "/admin/users",
-                "manager_plus": "/manager/reports", 
-                "custom_role": "/washer/dashboard"
-            }
-        }
-    
-    # EXAMPLE: Custom endpoints using auth dependencies
-    # These demonstrate how easy it is to add protected endpoints
-    
-    @app.get("/profile")
-    async def get_profile(current_user: AuthUser = Depends(auth_module.get_current_user)):
-        """Get current user profile - REQUIRES AUTHENTICATION"""
-        return {
-            "message": "This endpoint requires authentication",
-            "user": {
-                "id": str(current_user.id),
-                "email": current_user.email,
-                "first_name": current_user.first_name,
-                "last_name": current_user.last_name,
-                "role": current_user.role.value,
-                "email_verified": current_user.email_verified
-            }
-        }
-    
-    @app.get("/admin/users")
-    async def admin_users(current_user: AuthUser = Depends(auth_module.get_current_admin)):
-        """Admin-only endpoint - REQUIRES ADMIN ROLE"""
-        return {
-            "message": "This endpoint requires admin role",
-            "admin": current_user.email,
-            "note": "Only admins can access this endpoint"
-        }
-    
-    @app.get("/manager/reports")
-    async def manager_reports(current_user: AuthUser = Depends(auth_module.get_current_manager)):
-        """Manager+ endpoint - REQUIRES MANAGER OR ADMIN ROLE"""
-        return {
-            "message": "This endpoint requires manager or admin role",
-            "user": current_user.email,
-            "role": current_user.role.value,
-            "note": "Managers and admins can access this endpoint"
-        }
-    
-    @app.get("/washer/dashboard")
-    async def washer_dashboard(current_user: AuthUser = Depends(auth_module.require_role(AuthRole.WASHER))):
-        """Washer-only endpoint - REQUIRES SPECIFIC WASHER ROLE"""
-        return {
-            "message": "This endpoint requires washer role specifically",
-            "washer": current_user.email,
-            "note": "Only washers can access this endpoint"
-        }
-    
+    # Register feature routers
+    features = get_enabled_features()
+    router_manager = FeatureRouterManager(app)
+    router_manager.register_feature_routers(features)
     
     return app
 
 
-# Create the app instance
-app = create_app()
+# Create the application instance
+app = create_application()
 
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("[START] STARTING CAR WASH API - HYBRID MIDDLEWARE ARCHITECTURE")
-    print("=" * 60)
-    print("[AUTH] Authentication: Standalone auth module")
-    print("[DB] Database: PostgreSQL with async support")
-    print("[ARCH] Architecture: Feature-based with hybrid middleware")
-    print("[MIDDLEWARE] Global: CORS, Security, Logging, Compression")
-    print("[MIDDLEWARE] Feature: Rate limiting (auth only), Security logging")
-    print("[DOCS] Documentation: http://localhost:8000/docs")
-    print("=" * 60)
+def main() -> None:
+    """Main entry point"""
+    logger.info("🏁 Starting Car Wash API - Clean Architecture")
+    logger.info("📚 Principles: SOLID, Clean Architecture, Auto-Discovery")
+    logger.info("🔧 Dependency Management: Simplified Factory Pattern")
+    logger.info("📁 Architecture: Feature-Based with Clean Separation")
+    logger.info("🚀 Starting server...")
     
-    # Run the application
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="info"
+        log_level="info",
+        access_log=True
     )
+
+
+if __name__ == "__main__":
+    main()

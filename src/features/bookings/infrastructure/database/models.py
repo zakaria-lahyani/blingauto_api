@@ -104,11 +104,15 @@ class BookingModel(Base):
         if entity.customer_location:
             customer_location_str = json.dumps(entity.customer_location)
         
+        # Use robust timezone handling for database storage
+        from src.shared.utils.timezone_handler import normalize_datetime_for_db
+        scheduled_at_naive = normalize_datetime_for_db(entity.scheduled_at)
+        
         return cls(
             id=entity.id,
             customer_id=entity.customer_id,
             vehicle_id=entity.vehicle_id,
-            scheduled_at=entity.scheduled_at,
+            scheduled_at=scheduled_at_naive,
             booking_type=entity.booking_type.value,
             notes=entity.notes,
             customer_location=customer_location_str,
@@ -119,10 +123,10 @@ class BookingModel(Base):
             cancellation_fee=entity.cancellation_fee,
             quality_rating=entity.quality_rating.value if entity.quality_rating else None,
             quality_feedback=entity.quality_feedback,
-            actual_start_time=entity.actual_start_time,
-            actual_end_time=entity.actual_end_time,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at
+            actual_start_time=normalize_datetime_for_db(entity.actual_start_time),
+            actual_end_time=normalize_datetime_for_db(entity.actual_end_time),
+            created_at=normalize_datetime_for_db(entity.created_at),
+            updated_at=normalize_datetime_for_db(entity.updated_at)
         )
     
     def update_from_entity(self, entity: Booking) -> None:

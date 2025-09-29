@@ -159,13 +159,16 @@ class Booking:
     
     def _validate_scheduled_time(self, scheduled_at: datetime) -> None:
         """Validate scheduling time business rules"""
+        from src.shared.utils.timezone_handler import RobustTimezoneHandler, safe_datetime_compare
+        
         now = utc_now()
         
-        if scheduled_at <= now:
+        # Use robust timezone comparison
+        if not safe_datetime_compare(now, scheduled_at):
             raise ValueError("Cannot schedule appointments in the past")
         
         max_advance_time = now + timedelta(days=self.MAX_ADVANCE_DAYS)
-        if scheduled_at > max_advance_time:
+        if not safe_datetime_compare(scheduled_at, max_advance_time):
             raise ValueError(f"Cannot schedule more than {self.MAX_ADVANCE_DAYS} days in advance")
     
     def _validate_totals(self) -> None:

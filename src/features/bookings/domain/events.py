@@ -16,7 +16,11 @@ class BookingEvent:
     booking_id: UUID
     customer_id: UUID
     occurred_at: datetime
-    event_type: str
+    
+    @property
+    def event_type(self) -> str:
+        """Event type - to be overridden by subclasses"""
+        return "booking_event"
 
 
 @dataclass(frozen=True)
@@ -29,8 +33,9 @@ class BookingCreated(BookingEvent):
     total_duration: int
     notes: Optional[str] = None
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'booking_created')
+    @property
+    def event_type(self) -> str:
+        return "booking_created"
 
 
 @dataclass(frozen=True)
@@ -39,8 +44,9 @@ class BookingConfirmed(BookingEvent):
     scheduled_at: datetime
     total_price: Decimal
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'booking_confirmed')
+    @property
+    def event_type(self) -> str:
+        return "booking_confirmed"
 
 
 @dataclass(frozen=True)
@@ -50,8 +56,9 @@ class BookingStarted(BookingEvent):
     actual_start_time: datetime
     service_ids: List[UUID]
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'booking_started')
+    @property
+    def event_type(self) -> str:
+        return "booking_started"
 
 
 @dataclass(frozen=True)
@@ -64,8 +71,9 @@ class BookingCompleted(BookingEvent):
     overtime_charge: Decimal
     service_ids: List[UUID]
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'booking_completed')
+    @property
+    def event_type(self) -> str:
+        return "booking_completed"
 
 
 @dataclass(frozen=True)
@@ -76,8 +84,9 @@ class BookingCancelled(BookingEvent):
     notice_hours: float
     reason: Optional[str] = None
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'booking_cancelled')
+    @property
+    def event_type(self) -> str:
+        return "booking_cancelled"
 
 
 @dataclass(frozen=True)
@@ -87,8 +96,9 @@ class BookingRescheduled(BookingEvent):
     new_scheduled_at: datetime
     notice_hours: float
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'booking_rescheduled')
+    @property
+    def event_type(self) -> str:
+        return "booking_rescheduled"
 
 
 @dataclass(frozen=True)
@@ -98,8 +108,9 @@ class NoShowDetected(BookingEvent):
     grace_period_end: datetime
     penalty_fee: Decimal
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'no_show_detected')
+    @property
+    def event_type(self) -> str:
+        return "no_show_detected"
 
 
 @dataclass(frozen=True)
@@ -109,8 +120,9 @@ class QualityRated(BookingEvent):
     feedback: Optional[str]
     service_ids: List[UUID]
     
-    def __post_init__(self):
-        object.__setattr__(self, 'event_type', 'quality_rated')
+    @property
+    def event_type(self) -> str:
+        return "quality_rated"
 
 
 @dataclass(frozen=True)

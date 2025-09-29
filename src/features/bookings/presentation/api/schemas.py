@@ -89,7 +89,13 @@ class CreateBookingRequest(BaseModel):
     
     @validator('scheduled_at')
     def validate_scheduled_at(cls, v):
-        if v <= datetime.utcnow():
+        from datetime import timezone
+        # Handle both timezone-aware and naive datetimes
+        now = datetime.now(timezone.utc)
+        # If v is naive, assume it's UTC
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        if v <= now:
             raise ValueError('Scheduled time must be in the future')
         return v
 
@@ -118,7 +124,13 @@ class CreateBookingWithCapacityRequest(BaseModel):
     
     @validator('scheduled_at')
     def validate_scheduled_at(cls, v):
-        if v <= datetime.utcnow():
+        from datetime import timezone
+        # Handle both timezone-aware and naive datetimes
+        now = datetime.now(timezone.utc)
+        # If v is naive, assume it's UTC
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        if v <= now:
             raise ValueError('Scheduled time must be in the future')
         return v
     

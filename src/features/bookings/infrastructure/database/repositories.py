@@ -25,24 +25,8 @@ class BookingRepository(BaseRepository[Booking, BookingModel]):
     
     async def create(self, booking: Booking) -> Booking:
         """Create a new booking"""
-        # Create booking model
-        booking_model = BookingModel(
-            id=booking.id,
-            customer_id=booking.customer_id,
-            vehicle_id=booking.vehicle_id,
-            scheduled_at=booking.scheduled_at,
-            status=booking.status.value,
-            notes=booking.notes,
-            total_price=booking.total_price,
-            total_duration=booking.total_duration,
-            cancellation_fee=booking.cancellation_fee,
-            quality_rating=booking.quality_rating.value if booking.quality_rating else None,
-            quality_feedback=booking.quality_feedback,
-            actual_start_time=booking.actual_start_time,
-            actual_end_time=booking.actual_end_time,
-            created_at=booking.created_at,
-            updated_at=booking.updated_at
-        )
+        # Create booking model using from_entity which handles timezone conversion
+        booking_model = BookingModel.from_entity(booking)
         
         self.db_session.add(booking_model)
         

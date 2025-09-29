@@ -2,13 +2,20 @@
 Booking application service
 """
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional, Tuple
 from uuid import UUID
 
+from src.shared.utils.timezone_handler import (
+    RobustTimezoneHandler, 
+    normalize_datetime_for_db, 
+    safe_datetime_subtract_hours,
+    safe_datetime_compare
+)
+
 from src.features.bookings.domain.entities import Booking, BookingService
-from src.features.bookings.domain.enums import BookingStatus, QualityRating, BookingSortBy
+from src.features.bookings.domain.enums import BookingStatus, BookingType, QualityRating, BookingSortBy
 from src.features.bookings.domain.events import (
     BookingCreated, BookingConfirmed, BookingStarted, BookingCompleted,
     BookingCancelled, BookingRescheduled, NoShowDetected, QualityRated
@@ -36,9 +43,15 @@ class BookingApplicationService:
         vehicle_id: UUID,
         scheduled_at: datetime,
         service_ids: List[UUID],
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        booking_type: BookingType = BookingType.IN_HOME,
+        vehicle_size: str = "standard",
+        customer_location: Optional[dict] = None
     ) -> Booking:
         """Create a new booking"""
+        # Normalize scheduled_at for database storage using robust timezone handling
+        scheduled_at = normalize_datetime_for_db(scheduled_at)
+            
         # Validate and get services
         services = await self._get_booking_services(service_ids)
         
@@ -48,7 +61,10 @@ class BookingApplicationService:
             vehicle_id=vehicle_id,
             scheduled_at=scheduled_at,
             services=services,
-            notes=notes
+            notes=notes,
+            booking_type=booking_type,
+            vehicle_size=vehicle_size,
+            customer_location=customer_location
         )
         
         # Save to database
@@ -58,6 +74,80 @@ class BookingApplicationService:
         await self._fire_booking_created_event(saved_booking)
         
         return saved_booking
+    
+    async def create_booking_with_validation(
+        self,
+        customer_id: UUID,
+        vehicle_id: UUID,
+        scheduled_at: datetime,
+        service_ids: List[UUID],
+        notes: Optional[str] = None,
+        booking_type: BookingType = BookingType.IN_HOME,
+        vehicle_size: str = "standard",
+        customer_location: Optional[dict] = None,
+        auto_assign_resource: bool = False
+    ) -> Tuple[Booking, List[str]]:
+        """Create a new booking with validation and warnings"""
+        warnings = []
+        
+        # Validate vehicle exists
+        if not vehicle_id:
+            raise ValueError("Vehicle ID is required")
+        
+        # Validate services exist and are not empty
+        if not service_ids:
+            raise ValueError("At least one service must be selected")
+        
+        # Validate scheduled time is in the future using robust timezone handling
+        now = RobustTimezoneHandler.now_utc_aware()
+        if not safe_datetime_compare(now, scheduled_at):
+            raise ValueError("Booking must be scheduled in the future")
+        
+        # Normalize scheduled_at for database storage
+        scheduled_at = normalize_datetime_for_db(scheduled_at)
+        
+        # Validate and get services
+        services = await self._get_booking_services(service_ids)
+        
+        # Check for scheduling conflicts or warnings using robust timezone handling
+        hours_until_booking = safe_datetime_subtract_hours(scheduled_at, RobustTimezoneHandler.now_utc_aware())
+        if hours_until_booking is not None and hours_until_booking < 24:
+            warnings.append(f"Booking is scheduled within {int(hours_until_booking)} hours. Rush charges may apply.")
+        
+        # Create booking entity
+        booking = Booking(
+            customer_id=customer_id,
+            vehicle_id=vehicle_id,
+            scheduled_at=scheduled_at,
+            services=services,
+            notes=notes,
+            booking_type=booking_type,
+            vehicle_size=vehicle_size,
+            customer_location=customer_location
+        )
+        
+        # Save to database with proper error handling
+        try:
+            saved_booking = await self.booking_repo.create(booking)
+        except Exception as e:
+            from sqlalchemy.exc import IntegrityError
+            # Handle foreign key constraint violations specifically
+            if isinstance(e, IntegrityError):
+                error_msg = str(e).lower()
+                if "vehicle_id" in error_msg and ("not present" in error_msg or "violates foreign key" in error_msg):
+                    raise ValueError("Vehicle not found")
+                elif "service" in error_msg and ("not present" in error_msg or "violates foreign key" in error_msg):
+                    raise ValueError("One or more services not found")
+                else:
+                    raise ValueError(f"Data integrity error: {str(e).split('DETAIL:')[0].strip()}")
+            else:
+                # Re-raise other database errors
+                raise e
+        
+        # Fire domain event
+        await self._fire_booking_created_event(saved_booking)
+        
+        return saved_booking, warnings
     
     async def confirm_booking(self, booking_id: UUID) -> Booking:
         """Confirm a pending booking"""
@@ -108,7 +198,7 @@ class BookingApplicationService:
         """Cancel a booking with fee calculation"""
         booking = await self._get_booking_or_raise(booking_id)
         
-        cancel_time = cancellation_time or datetime.utcnow()
+        cancel_time = cancellation_time or datetime.now(timezone.utc)
         notice_hours = (booking.scheduled_at - cancel_time).total_seconds() / 3600
         
         booking.cancel(cancel_time)
@@ -128,7 +218,7 @@ class BookingApplicationService:
         booking = await self._get_booking_or_raise(booking_id)
         old_scheduled_at = booking.scheduled_at
         
-        notice_hours = (new_scheduled_at - datetime.utcnow()).total_seconds() / 3600
+        notice_hours = (new_scheduled_at - datetime.now(timezone.utc)).total_seconds() / 3600
         
         booking.reschedule(new_scheduled_at)
         updated_booking = await self.booking_repo.update(booking)
@@ -241,7 +331,7 @@ class BookingApplicationService:
         """Process no-show detection for overdue bookings"""
         # Calculate cutoff time (scheduled time + grace period)
         grace_period = timedelta(minutes=Booking.GRACE_PERIOD_MINUTES)
-        cutoff_time = datetime.utcnow() - grace_period
+        cutoff_time = datetime.now(timezone.utc) - grace_period
         
         # Get eligible bookings
         eligible_bookings = await self.booking_repo.get_bookings_for_no_show_check(cutoff_time)
@@ -267,7 +357,7 @@ class BookingApplicationService:
         """Calculate cancellation policy and fee for a booking"""
         booking = await self._get_booking_or_raise(booking_id)
         
-        cancel_time = cancellation_time or datetime.utcnow()
+        cancel_time = cancellation_time or datetime.now(timezone.utc)
         policy = booking.get_cancellation_policy(cancel_time)
         fee = booking._calculate_cancellation_fee(cancel_time)
         notice_hours = (booking.scheduled_at - cancel_time).total_seconds() / 3600
@@ -287,7 +377,7 @@ class BookingApplicationService:
         """Get booking analytics and metrics"""
         if not date_range:
             # Default to last 30 days
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=30)
             date_range = (start_date, end_date)
         
@@ -362,7 +452,7 @@ class BookingApplicationService:
         event = BookingCreated(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             vehicle_id=booking.vehicle_id,
             scheduled_at=booking.scheduled_at,
             service_ids=booking.service_ids,
@@ -391,7 +481,7 @@ class BookingApplicationService:
         event = BookingConfirmed(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             scheduled_at=booking.scheduled_at,
             total_price=booking.total_price
         )
@@ -412,7 +502,7 @@ class BookingApplicationService:
         event = BookingStarted(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             scheduled_at=booking.scheduled_at,
             actual_start_time=booking.actual_start_time,
             service_ids=booking.service_ids
@@ -437,7 +527,7 @@ class BookingApplicationService:
         event = BookingCompleted(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             scheduled_at=booking.scheduled_at,
             actual_start_time=booking.actual_start_time,
             actual_end_time=booking.actual_end_time,
@@ -471,7 +561,7 @@ class BookingApplicationService:
         event = BookingCancelled(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             scheduled_at=booking.scheduled_at,
             cancellation_fee=booking.cancellation_fee,
             notice_hours=notice_hours,
@@ -501,7 +591,7 @@ class BookingApplicationService:
         event = BookingRescheduled(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             old_scheduled_at=old_scheduled_at,
             new_scheduled_at=booking.scheduled_at,
             notice_hours=notice_hours
@@ -526,7 +616,7 @@ class BookingApplicationService:
         event = NoShowDetected(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             scheduled_at=booking.scheduled_at,
             grace_period_end=grace_period_end,
             penalty_fee=booking.cancellation_fee
@@ -549,7 +639,7 @@ class BookingApplicationService:
         event = QualityRated(
             booking_id=booking.id,
             customer_id=booking.customer_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=datetime.now(timezone.utc),
             rating=booking.quality_rating,
             feedback=booking.quality_feedback,
             service_ids=booking.service_ids
@@ -566,3 +656,81 @@ class BookingApplicationService:
             }),
             occurred_at=event.occurred_at
         )
+    # Additional methods for enhanced scheduling
+    async def get_available_times_for_date(
+        self,
+        date: datetime,
+        service_ids: List[UUID],
+        customer_id: UUID
+    ) -> List[datetime]:
+        """Get available time slots for a specific date"""
+        # For now, return sample time slots
+        available_times = []
+        start_hour = 8  # 8 AM
+        end_hour = 18   # 6 PM
+        
+        for hour in range(start_hour, end_hour):
+            for minute in [0, 30]:  # Every 30 minutes
+                time_slot = date.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=timezone.utc)
+                if time_slot > datetime.now(timezone.utc):  # Only future times
+                    available_times.append(time_slot)
+        
+        return available_times
+    
+    async def suggest_alternative_times(
+        self,
+        customer_id: UUID,
+        preferred_time: datetime,
+        service_ids: List[UUID],
+        days_to_search: int = 7
+    ) -> List[datetime]:
+        """Suggest alternative booking times"""
+        alternatives = []
+        current_date = preferred_time.date()
+        
+        for day_offset in range(days_to_search):
+            check_date = datetime.combine(
+                current_date + timedelta(days=day_offset),
+                preferred_time.time(),
+                tzinfo=timezone.utc
+            )
+            
+            if check_date > datetime.now(timezone.utc):
+                # Add times around the preferred time
+                for hour_offset in [-2, -1, 1, 2]:
+                    alt_time = check_date + timedelta(hours=hour_offset)
+                    if alt_time > datetime.now(timezone.utc) and 8 <= alt_time.hour < 18:
+                        alternatives.append(alt_time)
+        
+        return alternatives[:10]  # Return up to 10 alternatives
+    
+    async def reschedule_booking_with_validation(
+        self,
+        booking_id: UUID,
+        new_scheduled_at: datetime,
+        customer_id: UUID
+    ) -> Tuple[Booking, List[str]]:
+        """Reschedule a booking with validation"""
+        warnings = []
+        
+        # Get the booking
+        booking = await self._get_booking_or_raise(booking_id)
+        
+        # Verify ownership
+        if booking.customer_id != customer_id:
+            raise ValueError("You can only reschedule your own bookings")
+        
+        # Validate new time
+        if new_scheduled_at <= datetime.now(timezone.utc):
+            raise ValueError("Cannot reschedule to a past time")
+        
+        # Check if rescheduling is too close to the original time
+        hours_until_original = (booking.scheduled_at - datetime.now(timezone.utc)).total_seconds() / 3600
+        if hours_until_original < 2:
+            warnings.append("Rescheduling within 2 hours of original booking time may incur fees")
+        
+        # Reschedule the booking
+        rescheduled_booking = await self.reschedule_booking(booking_id, new_scheduled_at)
+        
+        return rescheduled_booking, warnings
+

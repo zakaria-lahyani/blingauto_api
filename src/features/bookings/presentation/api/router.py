@@ -29,6 +29,15 @@ from .schemas import (
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
+# Include walk-in booking router
+try:
+    from .walk_in_simple_router import router as walk_in_router
+    router.include_router(walk_in_router)
+    print("[OK] Walk-in router included successfully")
+except ImportError as e:
+    print(f"[WARN] Walk-in router not available: {e}")
+    pass
+
 
 
 def get_booking_service(db: AsyncSession = Depends(get_db)) -> BookingApplicationService:

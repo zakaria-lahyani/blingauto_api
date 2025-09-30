@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent / "src"
 from src.shared.simple_database import init_database, get_db_session, create_tables as create_all_tables
 from src.features.auth import AuthModule, AuthConfig
 from src.shared.middleware import setup_global_middleware
-from src.shared.config import GlobalConfig
+from src.shared.simple_config import AppConfig
 
 
 @pytest.fixture(scope="session")
@@ -81,7 +81,7 @@ async def test_app(auth_module: AuthModule) -> AsyncGenerator[FastAPI, None]:
     app = FastAPI(title="Test App")
     
     # Setup global middleware
-    global_config = GlobalConfig(
+    global_config = AppConfig(
         debug=True,
         environment="testing"
     )

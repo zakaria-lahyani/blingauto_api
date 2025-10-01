@@ -73,6 +73,30 @@ except ImportError as e:
     wash_bays_router = APIRouter()
     mobile_teams_router = APIRouter()
 
+try:
+    from app.features.staff.api.router import router as staff_router
+    print("Successfully loaded staff router")
+except ImportError as e:
+    print(f"Failed to load staff router: {e}")
+    from fastapi import APIRouter
+    staff_router = APIRouter()
+
+try:
+    from app.features.walkins.api.router import router as walkins_router
+    print("Successfully loaded walkins router")
+except ImportError as e:
+    print(f"Failed to load walkins router: {e}")
+    from fastapi import APIRouter
+    walkins_router = APIRouter()
+
+try:
+    from app.features.inventory.api.router import router as inventory_router
+    print("Successfully loaded inventory router")
+except ImportError as e:
+    print(f"Failed to load inventory router: {e}")
+    from fastapi import APIRouter
+    inventory_router = APIRouter()
+
 
 def _setup_auth_adapter():
     """Setup and register the authentication adapter for shared dependencies."""
@@ -161,6 +185,9 @@ def create_app() -> FastAPI:
     app.include_router(scheduling_router, prefix=f"{API_V1_PREFIX}/scheduling", tags=["Scheduling"])
     app.include_router(wash_bays_router, prefix=f"{API_V1_PREFIX}/facilities/wash-bays", tags=["Facilities - Wash Bays"])
     app.include_router(mobile_teams_router, prefix=f"{API_V1_PREFIX}/facilities/mobile-teams", tags=["Facilities - Mobile Teams"])
+    app.include_router(staff_router, prefix=f"{API_V1_PREFIX}/staff", tags=["Staff Management"])
+    app.include_router(walkins_router, prefix=f"{API_V1_PREFIX}", tags=["Walk-in Services"])
+    app.include_router(inventory_router, prefix=f"{API_V1_PREFIX}", tags=["Inventory Management"])
     
     # Configure OpenAPI documentation
     configure_openapi(app)

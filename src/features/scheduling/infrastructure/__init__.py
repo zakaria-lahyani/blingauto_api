@@ -1,3 +1,0 @@
-"""
-Scheduling infrastructure module
-"""

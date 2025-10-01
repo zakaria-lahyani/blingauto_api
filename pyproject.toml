@@ -1,0 +1,98 @@
+[tool.import-linter]
+root_package = "app"
+
+[[tool.import-linter.contracts]]
+name = "Cross-feature imports are forbidden"
+type = "forbidden"
+source_modules = [
+    "app.features.auth",
+    "app.features.bookings", 
+    "app.features.services",
+    "app.features.vehicles"
+]
+forbidden_modules = [
+    "app.features.auth",
+    "app.features.bookings",
+    "app.features.services", 
+    "app.features.vehicles"
+]
+ignore_imports = [
+    # Allow features to import from shared modules
+    "app.features.* -> app.shared.*",
+    # Allow features to import from core infrastructure
+    "app.features.* -> app.core.*"
+]
+
+[[tool.import-linter.contracts]]
+name = "Auth feature layered architecture"
+type = "layers"
+layers = [
+    "app.features.auth.api",
+    "app.features.auth.use_cases", 
+    "app.features.auth.domain"
+]
+containers = ["app.features.auth"]
+
+[[tool.import-linter.contracts]]
+name = "Bookings feature layered architecture"
+type = "layers"
+layers = [
+    "app.features.bookings.api",
+    "app.features.bookings.use_cases",
+    "app.features.bookings.domain"
+]
+containers = ["app.features.bookings"]
+
+[[tool.import-linter.contracts]]
+name = "Services feature layered architecture"
+type = "layers"
+layers = [
+    "app.features.services.api",
+    "app.features.services.use_cases",
+    "app.features.services.domain"
+]
+containers = ["app.features.services"]
+
+[[tool.import-linter.contracts]]
+name = "Vehicles feature layered architecture"
+type = "layers"
+layers = [
+    "app.features.vehicles.api",
+    "app.features.vehicles.use_cases",
+    "app.features.vehicles.domain"
+]
+containers = ["app.features.vehicles"]
+
+[[tool.import-linter.contracts]]
+name = "Domain purity - no framework dependencies"
+type = "forbidden"
+source_modules = [
+    "app.features.*.domain"
+]
+forbidden_modules = [
+    "fastapi",
+    "pydantic", 
+    "sqlalchemy",
+    "redis",
+    "celery"
+]
+
+[[tool.import-linter.contracts]]
+name = "No adapter imports in domain"
+type = "forbidden"
+source_modules = [
+    "app.features.*.domain"
+]
+forbidden_modules = [
+    "app.features.*.adapters"
+]
+
+[[tool.import-linter.contracts]]
+name = "No API imports in use cases"
+type = "forbidden"
+source_modules = [
+    "app.features.*.use_cases"
+]
+forbidden_modules = [
+    "app.features.*.api"
+]

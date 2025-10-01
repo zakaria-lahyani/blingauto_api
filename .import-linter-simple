@@ -1,0 +1,21 @@
+[importlinter]
+root_package = app
+
+[importlinter:contract:no-cross-feature]
+name = Features cannot import each other
+type = forbidden
+source_modules = 
+    app.features.auth
+forbidden_modules = 
+    app.features.bookings
+    app.features.services
+    app.features.vehicles
+
+[importlinter:contract:auth-layers]
+name = Auth follows layers
+type = layers
+layers = 
+    app.features.auth.api
+    app.features.auth.use_cases
+    app.features.auth.domain
+containers = app.features.auth

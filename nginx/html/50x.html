@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erreur Serveur - BlingAuto API</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 60px;
+            max-width: 600px;
+            text-align: center;
+        }
+        .error-icon { font-size: 5em; margin-bottom: 20px; }
+        h1 { color: #dc2626; font-size: 2.5em; margin-bottom: 20px; }
+        p { color: #666; font-size: 1.1em; margin-bottom: 30px; line-height: 1.6; }
+        .back-link {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .back-link:hover { background: #5568d3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">⚠️</div>
+        <h1>Erreur Serveur</h1>
+        <p>Une erreur est survenue lors du traitement de votre requête.<br>
+        Nos équipes ont été notifiées et travaillent à résoudre le problème.</p>
+        <a href="/" class="back-link">← Retour à l'accueil</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlingAuto API - Pre-Production</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 60px;
+            max-width: 800px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            font-size: 3em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .logo {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.3em;
+            margin-bottom: 40px;
+        }
+        .status {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 10px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        .links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        .link-card {
+            background: #f8f9fa;
+            padding: 30px 20px;
+            border-radius: 15px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .link-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        .link-card .icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        .link-card .title {
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        .link-card .description {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .footer {
+            margin-top: 60px;
+            color: #999;
+            font-size: 0.9em;
+        }
+        .env-badge {
+            display: inline-block;
+            background: #fbbf24;
+            color: #92400e;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🚗💧</div>
+        <div class="env-badge">PRE-PRODUCTION</div>
+        <h1>BlingAuto API</h1>
+        <p class="subtitle">Plateforme de Gestion de Lavage Automobile</p>
+        <div class="status">✓ Système Opérationnel</div>
+
+        <div class="links">
+            <a href="/docs" class="link-card">
+                <div class="icon">📚</div>
+                <div class="title">Documentation API</div>
+                <div class="description">Swagger UI interactif</div>
+            </a>
+
+            <a href="/redoc" class="link-card">
+                <div class="icon">📖</div>
+                <div class="title">ReDoc</div>
+                <div class="description">Documentation alternative</div>
+            </a>
+
+            <a href="/health" class="link-card">
+                <div class="icon">💚</div>
+                <div class="title">Health Check</div>
+                <div class="description">État du système</div>
+            </a>
+
+            <a href="/openapi.json" class="link-card">
+                <div class="icon">🔧</div>
+                <div class="title">OpenAPI Spec</div>
+                <div class="description">Spécification JSON</div>
+            </a>
+        </div>
+
+        <div class="footer">
+            <p><strong>BlingAuto API v1.0.0</strong></p>
+            <p>Environnement de Pre-Production</p>
+            <p style="margin-top: 20px; font-size: 0.85em;">
+                <strong>Endpoints:</strong><br>
+                • API: <code>/api/v1/*</code><br>
+                • Auth: <code>/api/v1/auth/*</code><br>
+                • Facilities: <code>/api/v1/facilities/*</code>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

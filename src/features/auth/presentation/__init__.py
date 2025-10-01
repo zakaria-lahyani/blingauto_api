@@ -1,3 +1,0 @@
-"""
-Auth presentation layer
-"""

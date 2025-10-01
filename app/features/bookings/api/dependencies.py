@@ -45,6 +45,7 @@ from app.features.bookings.adapters import (
     EventBusService,
     RedisLockService,
 )
+from app.features.bookings.adapters.capacity_service import WashBayCapacityService
 from app.features.bookings.use_cases import (
     CreateBookingUseCase,
     CancelBookingUseCase,
@@ -124,6 +125,13 @@ def get_booking_lock_service(
     return RedisLockService(lock_service)
 
 
+def get_capacity_service(
+    uow: Annotated[UnitOfWork, Depends(get_unit_of_work)]
+) -> WashBayCapacityService:
+    """Get wash bay capacity service."""
+    return WashBayCapacityService(uow.session)
+
+
 def get_create_booking_use_case(
     booking_repo: Annotated[SqlBookingRepository, Depends(get_booking_repository)],
     service_repo: Annotated[SqlServiceRepository, Depends(get_service_repository)],
@@ -132,16 +140,25 @@ def get_create_booking_use_case(
     notification_service: Annotated[EmailNotificationService, Depends(get_notification_service)],
     event_service: Annotated[EventBusService, Depends(get_booking_event_service)],
     lock_service: Annotated[RedisLockService, Depends(get_booking_lock_service)],
+    capacity_service: Annotated[WashBayCapacityService, Depends(get_capacity_service)],
 ) -> CreateBookingUseCase:
     """Get create booking use case."""
+    # Create validators
+    from app.features.bookings.adapters.external_services import (
+        ExternalServiceValidator,
+        ExternalVehicleValidator,
+    )
+    service_validator = ExternalServiceValidator(service_repo, customer_repo)
+    vehicle_validator = ExternalVehicleValidator(vehicle_repo)
+
     return CreateBookingUseCase(
         booking_repository=booking_repo,
-        service_repository=service_repo,
-        vehicle_repository=vehicle_repo,
-        customer_repository=customer_repo,
         notification_service=notification_service,
         event_service=event_service,
         lock_service=lock_service,
+        service_validator=service_validator,
+        vehicle_validator=vehicle_validator,
+        capacity_service=capacity_service,
     )
 
 

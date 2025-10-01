@@ -11,6 +11,7 @@ python-multipart>=0.0.6
 # Database
 sqlalchemy[asyncio]>=2.0.23
 asyncpg>=0.29.0  # PostgreSQL async driver
+psycopg2-binary>=2.9.9  # PostgreSQL sync driver (for migrations)
 aiosqlite>=0.19.0  # SQLite async driver (for testing/dev)
 
 # Authentication and security

@@ -72,12 +72,16 @@ class BookingResponseSchema(BaseModel):
     phone_number: str = Field(..., description="Contact phone number")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
-    
+
+    # Resource allocation fields
+    wash_bay_id: Optional[str] = Field(None, description="Assigned wash bay ID (for stationary bookings)")
+    mobile_team_id: Optional[str] = Field(None, description="Assigned mobile team ID (for mobile bookings)")
+
     # Optional cancellation fields
     cancelled_at: Optional[datetime] = Field(None, description="Cancellation timestamp")
     cancelled_by: Optional[str] = Field(None, description="Who cancelled the booking")
     cancellation_reason: Optional[str] = Field(None, description="Cancellation reason")
-    
+
     class Config:
         from_attributes = True
 
@@ -119,7 +123,9 @@ class CreateBookingResponseSchema(BaseModel):
     estimated_duration: int = Field(..., ge=1, description="Estimated duration in minutes")
     scheduled_at: datetime = Field(..., description="Scheduled date and time")
     services: List[BookingServiceSchema] = Field(..., description="List of services")
-    
+    wash_bay_id: Optional[str] = Field(None, description="Assigned wash bay ID (for stationary bookings)")
+    mobile_team_id: Optional[str] = Field(None, description="Assigned mobile team ID (for mobile bookings)")
+
     class Config:
         from_attributes = True
 

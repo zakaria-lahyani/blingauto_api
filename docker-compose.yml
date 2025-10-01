@@ -156,7 +156,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-blingauto_user}:${POSTGRES_PASSWORD:-change_this_password}@postgres:5432/${POSTGRES_DB:-blingauto}
-    command: ["alembic", "upgrade", "head"]
+    entrypoint: ["/app/scripts/docker-entrypoint-migrations.sh"]
     networks:
       - blingauto-network
     restart: "no"

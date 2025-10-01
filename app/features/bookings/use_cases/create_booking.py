@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.core.errors import ValidationError, BusinessRuleViolationError, NotFoundError
 from app.features.bookings.domain import Booking, BookingService, BookingType, BookingStatus
@@ -15,6 +15,7 @@ from app.features.bookings.ports.external_services import (
     IExternalServiceValidator,
     IExternalVehicleValidator,
 )
+from app.features.bookings.ports.capacity_service import IWashBayCapacityService
 
 
 @dataclass
@@ -36,6 +37,8 @@ class CreateBookingResponse:
     estimated_duration: int
     scheduled_at: datetime
     services: List[Dict[str, Any]]
+    wash_bay_id: Optional[str] = None
+    mobile_team_id: Optional[str] = None
 
 
 class CreateBookingUseCase:
@@ -49,6 +52,7 @@ class CreateBookingUseCase:
         lock_service: ILockService,
         service_validator: IExternalServiceValidator,
         vehicle_validator: IExternalVehicleValidator,
+        capacity_service: IWashBayCapacityService,
     ):
         self._booking_repository = booking_repository
         self._notification_service = notification_service
@@ -56,6 +60,7 @@ class CreateBookingUseCase:
         self._lock_service = lock_service
         self._service_validator = service_validator
         self._vehicle_validator = vehicle_validator
+        self._capacity_service = capacity_service
     
     def execute(self, request: CreateBookingRequest) -> CreateBookingResponse:
         """Execute the create booking use case."""
@@ -135,7 +140,33 @@ class CreateBookingUseCase:
                 notes=request.notes,
                 phone_number=request.phone_number,
             )
-            
+
+            # Step 8.5: Allocate wash bay for stationary bookings
+            if booking_type == BookingType.STATIONARY:
+                # Get vehicle data to determine size
+                vehicle_data = self._vehicle_validator.get_vehicle_data(request.vehicle_id)
+                vehicle_size = vehicle_data.get("size", "standard") if vehicle_data else "standard"
+
+                # Find available wash bay
+                import asyncio
+                wash_bay_id = asyncio.run(self._capacity_service.find_available_wash_bay(
+                    request.scheduled_at,
+                    total_duration,
+                    vehicle_size
+                ))
+
+                if not wash_bay_id:
+                    available_capacity = asyncio.run(self._capacity_service.get_available_capacity(
+                        request.scheduled_at,
+                        total_duration
+                    ))
+                    raise BusinessRuleViolationError(
+                        f"No available wash bay for {vehicle_size} vehicle at {request.scheduled_at}. "
+                        f"All wash bays are fully booked (0/{available_capacity} available)."
+                    )
+
+                booking.wash_bay_id = wash_bay_id
+
             # Step 9: Validate booking with business policies
             BookingSchedulingPolicy.validate_booking_creation(booking)
             BookingSchedulingPolicy.validate_scheduling_constraints(
@@ -168,6 +199,8 @@ class CreateBookingUseCase:
                 total_price=saved_booking.total_price,
                 estimated_duration=saved_booking.estimated_duration_minutes,
                 scheduled_at=saved_booking.scheduled_at,
+                wash_bay_id=saved_booking.wash_bay_id,
+                mobile_team_id=saved_booking.mobile_team_id,
                 services=[
                     {
                         "id": service.service_id,

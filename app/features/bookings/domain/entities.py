@@ -112,7 +112,11 @@ class Booking:
     estimated_duration_minutes: int  # Changed from total_duration to match use cases
     created_at: datetime
     updated_at: datetime
-    
+
+    # Resource allocation
+    wash_bay_id: Optional[str] = None
+    mobile_team_id: Optional[str] = None
+
     # Optional fields
     notes: Optional[str] = ""
     phone_number: Optional[str] = ""  # Added to match use cases

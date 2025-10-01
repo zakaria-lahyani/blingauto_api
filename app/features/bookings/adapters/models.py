@@ -20,6 +20,10 @@ class Booking(Base, TimestampMixin):
     booking_type = Column(String(20), nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
     estimated_duration_minutes = Column(Integer, nullable=False)  # in minutes
+
+    # Resource allocation for stationary bookings
+    wash_bay_id = Column(String, ForeignKey("wash_bays.id"), nullable=True)
+    mobile_team_id = Column(String, ForeignKey("mobile_teams.id"), nullable=True)
     
     # Optional fields
     notes = Column(Text, nullable=True, default="")
@@ -44,6 +48,8 @@ class Booking(Base, TimestampMixin):
     customer = relationship("UserModel", back_populates="bookings")
     vehicle = relationship("Vehicle", back_populates="bookings")
     booking_services = relationship("BookingService", back_populates="booking", cascade="all, delete-orphan")
+    # Note: wash_bay and mobile_team relationships removed to avoid cross-feature imports
+    # Use capacity service or direct SQL queries to get wash bay/team details
     
     @property
     def total_price_display(self) -> str:

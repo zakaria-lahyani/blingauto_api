@@ -34,6 +34,9 @@ from ..use_cases import (
 from ..domain.entities import ResourceStatus
 from app.core.errors import ValidationError, BusinessRuleViolationError, NotFoundError
 from app.shared.auth import get_current_user, CurrentUser, require_any_role
+
+# Cross-feature import exception (ADR-001: Shared Auth Enums)
+# UserRole is an immutable enum used only for authorization checks in API layer
 from app.features.auth.domain import UserRole
 
 router = APIRouter()

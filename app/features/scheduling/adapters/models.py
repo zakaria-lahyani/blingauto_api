@@ -1,16 +1,23 @@
-"""Scheduling database models."""
+"""Scheduling database models.
+
+Clean Architecture Compliance:
+- Uses string-based foreign keys (no cross-feature model imports)
+- No relationship declarations (data fetched via repositories)
+- Maintains database integrity through FK constraints
+"""
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Numeric, Text, JSON
-from sqlalchemy.orm import relationship
 import uuid
 
 from app.core.db.base import Base, TimestampMixin
-# Import facilities models instead of redefining them
-from app.features.facilities.adapters.models import WashBayModel as WashBay, MobileTeamModel as MobileTeam
 
 
 class TimeSlot(Base):
-    """Time slot database model."""
+    """Time slot database model.
+
+    Uses string-based foreign keys to avoid cross-feature imports.
+    Related data is fetched via repositories, not relationships.
+    """
 
     __tablename__ = "time_slots"
 
@@ -23,14 +30,12 @@ class TimeSlot(Base):
     booking_id = Column(String, ForeignKey("bookings.id"), nullable=True)
     buffer_minutes = Column(Integer, nullable=False, default=15)
 
-    # Foreign keys for relationships
+    # String-based foreign keys (maintains DB integrity without model coupling)
     wash_bay_id = Column(String, ForeignKey("wash_bays.id"), nullable=True)
     mobile_team_id = Column(String, ForeignKey("mobile_teams.id"), nullable=True)
 
-    # Relationships
-    wash_bay = relationship("WashBay", back_populates="time_slots")
-    mobile_team = relationship("MobileTeam", back_populates="time_slots")
-    booking = relationship("Booking")  # Reference to booking if reserved
+    # Note: No relationships declared here (clean architecture principle)
+    # Related data is fetched explicitly via repositories when needed
 
     @property
     def duration_minutes(self):

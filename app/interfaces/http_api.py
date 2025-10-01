@@ -97,6 +97,22 @@ except ImportError as e:
     from fastapi import APIRouter
     inventory_router = APIRouter()
 
+try:
+    from app.features.expenses.api.router import router as expenses_router
+    print("Successfully loaded expenses router")
+except ImportError as e:
+    print(f"Failed to load expenses router: {e}")
+    from fastapi import APIRouter
+    expenses_router = APIRouter()
+
+try:
+    from app.features.analytics.api.router import router as analytics_router
+    print("Successfully loaded analytics router")
+except ImportError as e:
+    print(f"Failed to load analytics router: {e}")
+    from fastapi import APIRouter
+    analytics_router = APIRouter()
+
 
 def _setup_auth_adapter():
     """Setup and register the authentication adapter for shared dependencies."""
@@ -188,7 +204,9 @@ def create_app() -> FastAPI:
     app.include_router(staff_router, prefix=f"{API_V1_PREFIX}/staff", tags=["Staff Management"])
     app.include_router(walkins_router, prefix=f"{API_V1_PREFIX}", tags=["Walk-in Services"])
     app.include_router(inventory_router, prefix=f"{API_V1_PREFIX}", tags=["Inventory Management"])
-    
+    app.include_router(expenses_router, prefix=f"{API_V1_PREFIX}", tags=["Expense Management"])
+    app.include_router(analytics_router, prefix=f"{API_V1_PREFIX}", tags=["Analytics & Reporting"])
+
     # Configure OpenAPI documentation
     configure_openapi(app)
     

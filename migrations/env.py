@@ -42,6 +42,26 @@ try:
 except ImportError:
     pass
 
+try:
+    from app.features.staff.adapters.models import *
+except ImportError:
+    pass
+
+try:
+    from app.features.walkins.adapters.models import *
+except ImportError:
+    pass
+
+try:
+    from app.features.inventory.adapters.models import *
+except ImportError:
+    pass
+
+try:
+    from app.features.expenses.adapters.models import *
+except ImportError:
+    pass
+
 # Import the base metadata
 try:
     from app.core.database import Base

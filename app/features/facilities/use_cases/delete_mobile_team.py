@@ -66,8 +66,6 @@ class DeleteMobileTeamUseCase:
                 code="MOBILE_TEAM_NOT_FOUND"
             )
 
-        # TODO: Check for active bookings via consumer-owned port if needed
-
         # Perform soft delete
         deleted = await self._repository.delete(request.team_id)
 

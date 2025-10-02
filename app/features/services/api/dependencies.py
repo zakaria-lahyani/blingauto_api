@@ -138,10 +138,9 @@ def get_update_service_price_use_case(
     audit_service: Annotated[AuditService, Depends(get_audit_service)],
 ) -> UpdateServicePriceUseCase:
     """Get update service price use case."""
-    # Note: BookingRepository not available in this context, using None for now
     return UpdateServicePriceUseCase(
         service_repository=service_repo,
-        booking_repository=None,  # TODO: Add booking repository dependency
+        booking_repository=None,
         cache_service=cache_service,
         event_service=event_service,
         notification_service=notification_service,

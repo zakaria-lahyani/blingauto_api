@@ -1,0 +1,960 @@
+{
+  "info": {
+    "name": "03 - Complete Booking Lifecycle",
+    "description": "End-to-end booking scenarios from creation to completion with all state transitions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Setup: Prerequisites",
+      "description": "Setup services, vehicles, and authentication needed for bookings",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('access_token', jsonData.access_token);",
+                  "pm.test(\"Admin logged in successfully\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Create Service Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('category_id', jsonData.id);",
+                  "    pm.test(\"Category created\", () => pm.response.to.have.status(201));",
+                  "} else if (pm.response.code === 400 || pm.response.code === 422) {",
+                  "    pm.test(\"Category already exists (acceptable)\", () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Exterior Wash\",\n  \"description\": \"Exterior cleaning services\",\n  \"display_order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/services/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "services", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Get Categories List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.categories && jsonData.categories.length > 0) {",
+                  "    pm.environment.set('category_id', jsonData.categories[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/services/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "services", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Create Test Services",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Create array of services to test",
+                  "pm.environment.set('test_services', JSON.stringify([",
+                  "    {name: 'Basic Wash', price: 25.00, duration: 30},",
+                  "    {name: 'Premium Wash', price: 45.00, duration: 60},",
+                  "    {name: 'Interior Detail', price: 65.00, duration: 90}",
+                  "]));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    // Store service IDs",
+                  "    var serviceIds = pm.environment.get('service_ids');",
+                  "    if (!serviceIds) {",
+                  "        serviceIds = [];",
+                  "    } else {",
+                  "        serviceIds = JSON.parse(serviceIds);",
+                  "    }",
+                  "    serviceIds.push(jsonData.id);",
+                  "    pm.environment.set('service_ids', JSON.stringify(serviceIds));",
+                  "    pm.environment.set('service_id', jsonData.id);",
+                  "    ",
+                  "    pm.test(\"Service created\", () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_id\": \"{{category_id}}\",\n  \"name\": \"Basic Wash\",\n  \"description\": \"Standard exterior wash\",\n  \"price\": 25.00,\n  \"duration_minutes\": 30,\n  \"is_popular\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/services",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "services"]
+            }
+          }
+        },
+        {
+          "name": "Login as Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('access_token', jsonData.access_token);",
+                  "pm.environment.set('user_id', jsonData.user.id);",
+                  "pm.test(\"Client logged in successfully\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register Test Vehicle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('vehicle_id', jsonData.id);",
+                  "    pm.test(\"Vehicle created\", () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"make\": \"Toyota\",\n  \"model\": \"Camry\",\n  \"year\": 2023,\n  \"color\": \"Silver\",\n  \"license_plate\": \"TEST123\",\n  \"is_default\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/vehicles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "vehicles"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scenario 1: Happy Path - Complete Booking Flow",
+      "description": "Create booking → Confirm → Start → Complete → Rate",
+      "item": [
+        {
+          "name": "Step 1: Create Booking (PENDING)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Set scheduled time to 3 days from now at 10:00 AM",
+                  "const scheduledDate = new Date();",
+                  "scheduledDate.setDate(scheduledDate.getDate() + 3);",
+                  "scheduledDate.setHours(10, 0, 0, 0);",
+                  "pm.environment.set('scheduled_at', scheduledDate.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking created with correct data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('booking_number');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData.status).to.eql('pending');",
+                  "    ",
+                  "    // Save booking ID for next steps",
+                  "    pm.environment.set('booking_id', jsonData.id);",
+                  "    pm.environment.set('booking_number', jsonData.booking_number);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking has price calculation\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('total_price');",
+                  "    pm.expect(jsonData).to.have.property('estimated_duration_minutes');",
+                  "    pm.expect(jsonData.total_price).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking has services\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('services');",
+                  "    pm.expect(jsonData.services).to.be.an('array');",
+                  "    pm.expect(jsonData.services.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{user_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"service_ids\": [\"{{service_id}}\"],\n  \"scheduled_at\": \"{{scheduled_at}}\",\n  \"booking_type\": \"in_home\",\n  \"notes\": \"Please use eco-friendly products\",\n  \"phone_number\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Step 2: Get Booking Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking details match creation\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.id).to.eql(pm.environment.get('booking_id'));",
+                  "    pm.expect(jsonData.status).to.eql('pending');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{booking_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{booking_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Step 3: Login as Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('manager_token', jsonData.access_token);",
+                  "pm.test(\"Manager logged in\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{manager_email}}\",\n  \"password\": \"{{manager_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Step 4: Confirm Booking (PENDING → CONFIRMED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking status is confirmed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('confirmed');",
+                  "});",
+                  "",
+                  "pm.test(\"Confirmation metadata exists\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('confirmed_at');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{manager_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Booking confirmed by manager\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{booking_id}}/confirm",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{booking_id}}", "confirm"]
+            }
+          }
+        },
+        {
+          "name": "Step 5: Start Booking (CONFIRMED → IN_PROGRESS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking status is in_progress\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('in_progress');",
+                  "});",
+                  "",
+                  "pm.test(\"Start time is recorded\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('started_at');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{manager_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{booking_id}}/start",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{booking_id}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "Step 6: Complete Booking (IN_PROGRESS → COMPLETED)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Set completion time to current time",
+                  "pm.environment.set('completion_time', new Date().toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Booking status is completed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('completed');",
+                  "});",
+                  "",
+                  "pm.test(\"Completion metadata exists\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('completed_at');",
+                  "    pm.expect(jsonData).to.have.property('actual_end_time');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{manager_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actual_end_time\": \"{{completion_time}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{booking_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{booking_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Step 7: Rate Booking (Client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Rating is saved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('rating');",
+                  "    pm.expect(jsonData.rating).to.eql(5);",
+                  "});",
+                  "",
+                  "pm.test(\"Feedback is saved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('feedback');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"feedback\": \"Excellent service! Very professional and thorough.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{booking_id}}/rate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{booking_id}}", "rate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scenario 2: Booking Modifications",
+      "description": "Test adding/removing services and rescheduling",
+      "item": [
+        {
+          "name": "Create Booking for Modifications",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const scheduledDate = new Date();",
+                  "scheduledDate.setDate(scheduledDate.getDate() + 5);",
+                  "scheduledDate.setHours(14, 0, 0, 0);",
+                  "pm.environment.set('scheduled_at', scheduledDate.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('modify_booking_id', jsonData.id);",
+                  "    pm.environment.set('initial_price', jsonData.total_price);",
+                  "    pm.test(\"Booking created\", () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{user_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"service_ids\": [\"{{service_id}}\"],\n  \"scheduled_at\": \"{{scheduled_at}}\",\n  \"booking_type\": \"in_home\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Get Service List for Adding",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Services retrieved\", () => pm.response.to.have.status(200));",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.items && jsonData.items.length > 1) {",
+                  "    pm.environment.set('additional_service_id', jsonData.items[1].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/services?is_active=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "services"],
+              "query": [{"key": "is_active", "value": "true"}]
+            }
+          }
+        },
+        {
+          "name": "Add Service to Booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Service added successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Price updated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var initialPrice = parseFloat(pm.environment.get('initial_price'));",
+                  "    pm.expect(parseFloat(jsonData.total_price)).to.be.above(initialPrice);",
+                  "});",
+                  "",
+                  "pm.test(\"Service count increased\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.services.length).to.be.above(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_ids\": [\"{{additional_service_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{modify_booking_id}}/services",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{modify_booking_id}}", "services"]
+            }
+          }
+        },
+        {
+          "name": "Reschedule Booking",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Reschedule to 7 days from now",
+                  "const newDate = new Date();",
+                  "newDate.setDate(newDate.getDate() + 7);",
+                  "newDate.setHours(15, 30, 0, 0);",
+                  "pm.environment.set('new_scheduled_at', newDate.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Booking rescheduled successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Scheduled time updated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.scheduled_at).to.eql(pm.environment.get('new_scheduled_at'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_scheduled_at\": \"{{new_scheduled_at}}\",\n  \"reason\": \"Customer requested time change\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{modify_booking_id}}/reschedule",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{modify_booking_id}}", "reschedule"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scenario 3: Booking Cancellation",
+      "description": "Test cancellation with fee calculation",
+      "item": [
+        {
+          "name": "Create Booking for Cancellation",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const scheduledDate = new Date();",
+                  "scheduledDate.setDate(scheduledDate.getDate() + 10);",
+                  "scheduledDate.setHours(11, 0, 0, 0);",
+                  "pm.environment.set('scheduled_at', scheduledDate.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('cancel_booking_id', jsonData.id);",
+                  "    pm.environment.set('booking_price', jsonData.total_price);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{user_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"service_ids\": [\"{{service_id}}\"],\n  \"scheduled_at\": \"{{scheduled_at}}\",\n  \"booking_type\": \"in_home\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Booking (>24h notice → 50% fee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Booking cancelled successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Status is cancelled\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('cancelled');",
+                  "});",
+                  "",
+                  "pm.test(\"Cancellation fee calculated (50%)\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('cancellation_fee');",
+                  "    var expectedFee = parseFloat(pm.environment.get('booking_price')) * 0.5;",
+                  "    pm.expect(parseFloat(jsonData.cancellation_fee)).to.eql(expectedFee);",
+                  "});",
+                  "",
+                  "pm.test(\"Cancellation reason recorded\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('cancellation_reason');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer conflict - need to reschedule\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{cancel_booking_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{cancel_booking_id}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scenario 4: Business Rule Violations",
+      "description": "Test that business rules are enforced",
+      "item": [
+        {
+          "name": "Cannot Book in the Past",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Set time to yesterday",
+                  "const pastDate = new Date();",
+                  "pastDate.setDate(pastDate.getDate() - 1);",
+                  "pm.environment.set('past_date', pastDate.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request fails with 400 or 422\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions past scheduling\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.detail.toLowerCase()).to.match(/past|schedule|future/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{user_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"service_ids\": [\"{{service_id}}\"],\n  \"scheduled_at\": \"{{past_date}}\",\n  \"booking_type\": \"in_home\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Cannot Book Beyond 90 Days",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Set time to 100 days in future",
+                  "const futureDate = new Date();",
+                  "futureDate.setDate(futureDate.getDate() + 100);",
+                  "pm.environment.set('far_future_date', futureDate.toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request fails with 400 or 422\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions advance booking limit\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.detail.toLowerCase()).to.match(/90 days|advance|maximum/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{user_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"service_ids\": [\"{{service_id}}\"],\n  \"scheduled_at\": \"{{far_future_date}}\",\n  \"booking_type\": \"in_home\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Cannot Rate Booking Twice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request fails with 400 or 422\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message mentions already rated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.detail.toLowerCase()).to.match(/already|rated|once/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{access_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"feedback\": \"Trying to rate again\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/bookings/{{booking_id}}/rate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_version}}", "bookings", "{{booking_id}}", "rate"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request for booking collection",
+          "pm.environment.set('timestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test assertions",
+          "if (pm.response.code !== 404) {",
+          "    pm.test(\"Content-Type is JSON\", function () {",
+          "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ]
+}

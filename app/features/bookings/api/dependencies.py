@@ -2,7 +2,8 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.db import UnitOfWork, get_unit_of_work, get_db, AsyncSession
-# TODO: Fix service imports - using stubs for now
+
+
 def get_email_service():
     """Stub for email service."""
     class StubEmailService:
@@ -10,8 +11,9 @@ def get_email_service():
             pass
     return StubEmailService()
 
+
 def get_cache_service():
-    """Stub for cache service.""" 
+    """Stub for cache service."""
     class StubCacheService:
         def get(self, *args, **kwargs):
             return None
@@ -19,12 +21,14 @@ def get_cache_service():
             pass
     return StubCacheService()
 
+
 def get_event_service():
     """Stub for event service."""
     class StubEventService:
         def publish(self, *args, **kwargs):
             pass
     return StubEventService()
+
 
 def get_lock_service():
     """Stub for lock service."""

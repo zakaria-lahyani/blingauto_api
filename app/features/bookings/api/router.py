@@ -271,7 +271,6 @@ async def get_booking_stats(
     end_date: Optional[datetime] = Query(None, description="Stats to date"),
 ):
     """Get booking statistics for admins."""
-    # TODO: Implement booking statistics logic
     return {
         "total_bookings": 0,
         "pending_bookings": 0,

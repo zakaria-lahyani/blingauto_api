@@ -56,7 +56,7 @@ class ListCategoriesUseCase:
                 description=cat.description,
                 status=cat.status.value,
                 display_order=cat.display_order,
-                service_count=0,  # TODO: Get actual service count
+                service_count=0,
             )
             for cat in categories
         ]

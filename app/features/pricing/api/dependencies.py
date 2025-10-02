@@ -23,8 +23,6 @@ def get_calculate_quote_use_case(
     service_catalog: Annotated[ServiceCatalogAdapter, Depends(get_service_catalog)],
 ) -> CalculateQuoteUseCase:
     """Get calculate quote use case."""
-    # For now, tax and discount services are optional (None)
-    # TODO: Implement tax and discount service adapters when needed
     return CalculateQuoteUseCase(
         service_catalog=service_catalog,
         tax_service=None,

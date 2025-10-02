@@ -76,8 +76,6 @@ async def get_work_schedule_repository(
 
 async def get_file_storage_service() -> IFileStorageService:
     """Get file storage service instance."""
-    # TODO: Make this configurable via environment variables
-    # For production, use S3FileStorageService
     return LocalFileStorageService(base_path="uploads")
 
 

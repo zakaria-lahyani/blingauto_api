@@ -11,12 +11,20 @@ class AuthDomainError(Exception):
 
 class ValidationError(AuthDomainError):
     """Validation error in auth domain."""
-    pass
+
+    def __init__(self, message: str, field: str = None):
+        self.message = message
+        self.field = field
+        super().__init__(message)
 
 
 class BusinessRuleViolationError(AuthDomainError):
     """Business rule violation in auth domain."""
-    pass
+
+    def __init__(self, message: str, rule: str = None):
+        self.message = message
+        self.rule = rule
+        super().__init__(message)
 
 
 class AuthenticationError(AuthDomainError):

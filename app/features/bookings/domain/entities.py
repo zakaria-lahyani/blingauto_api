@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional, Dict, Any
@@ -157,7 +157,7 @@ class Booking:
         Factory method to create a new booking.
         Enforces business rules RG-BOK-001 to RG-BOK-007.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         total_price = sum(service.price for service in services)
         estimated_duration = sum(service.duration_minutes for service in services)
         
@@ -196,7 +196,7 @@ class Booking:
     
     def _validate_scheduled_time(self):
         """Validate scheduling time business rules - RG-BOK-004"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Cannot schedule in the past
         if self.scheduled_at <= now:
@@ -269,7 +269,7 @@ class Booking:
             )
         
         self.status = BookingStatus.CONFIRMED
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def start_service(self):
         """Start the service (mark as in progress) - RG-BOK-008, RG-BOK-009"""
@@ -280,8 +280,8 @@ class Booking:
             )
         
         self.status = BookingStatus.IN_PROGRESS
-        self.actual_start_time = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.actual_start_time = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
     
     def complete_service(self, actual_end_time: Optional[datetime] = None):
         """Complete the service - RG-BOK-008, RG-BOK-015"""
@@ -292,8 +292,8 @@ class Booking:
             )
         
         self.status = BookingStatus.COMPLETED
-        self.actual_end_time = actual_end_time or datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.actual_end_time = actual_end_time or datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
         
         # Calculate overtime charges if applicable - RG-BOK-015
         self._calculate_overtime_charges()
@@ -309,10 +309,10 @@ class Booking:
         # Calculate cancellation fee based on time until scheduled appointment
         self.cancellation_fee = self._calculate_cancellation_fee()
         self.status = BookingStatus.CANCELLED
-        self.cancelled_at = datetime.utcnow()
+        self.cancelled_at = datetime.now(timezone.utc)
         self.cancelled_by = cancelled_by
         self.cancellation_reason = reason
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         
         if reason:
             self.notes = f"{self.notes or ''}\nCancellation reason: {reason}".strip()
@@ -327,7 +327,7 @@ class Booking:
         
         # Check if grace period has passed
         grace_end = self.scheduled_at + timedelta(minutes=self.GRACE_PERIOD_MINUTES)
-        if datetime.utcnow() < grace_end:
+        if datetime.now(timezone.utc) < grace_end:
             raise BusinessRuleViolationError(
                 f"Cannot mark as no-show until {self.GRACE_PERIOD_MINUTES} minutes after scheduled time",
                 rule="RG-BOK-011"
@@ -335,7 +335,7 @@ class Booking:
         
         self.status = BookingStatus.NO_SHOW
         self.cancellation_fee = self.total_price  # 100% fee for no-show
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def reschedule(self, new_scheduled_at: datetime):
         """Reschedule the booking - RG-BOK-012"""
@@ -346,7 +346,7 @@ class Booking:
             )
         
         # Check minimum notice for rescheduling
-        min_notice_time = datetime.utcnow() + timedelta(hours=self.MIN_RESCHEDULE_NOTICE_HOURS)
+        min_notice_time = datetime.now(timezone.utc) + timedelta(hours=self.MIN_RESCHEDULE_NOTICE_HOURS)
         if new_scheduled_at < min_notice_time:
             raise BusinessRuleViolationError(
                 f"Rescheduling requires at least {self.MIN_RESCHEDULE_NOTICE_HOURS} hours notice",
@@ -355,7 +355,7 @@ class Booking:
         
         old_time = self.scheduled_at
         self.scheduled_at = new_scheduled_at
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         
         # Validate new time
         self._validate_scheduled_time()
@@ -374,17 +374,17 @@ class Booking:
         self.services = new_services
         self._recalculate_totals()
         self._validate_totals()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def update_notes(self, notes: str):
         """Update booking notes"""
         self.notes = notes
-        self.updated_at = datetime.utcnow()
-    
+        self.updated_at = datetime.now(timezone.utc)
+
     def update_phone_number(self, phone_number: str):
         """Update booking phone number"""
         self.phone_number = phone_number
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def add_service(self, service: BookingService):
         """Add a service to the booking - RG-BOK-013"""
@@ -411,7 +411,7 @@ class Booking:
         self.services.append(service)
         self._recalculate_totals()
         self._validate_totals()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def remove_service(self, service_id: str):
         """Remove a service from the booking - RG-BOK-014"""
@@ -434,9 +434,9 @@ class Booking:
         
         if len(self.services) == original_count:
             raise ValidationError("Service not found in booking", field="service_id")
-        
+
         self._recalculate_totals()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def rate_quality(self, rating: QualityRating, feedback: Optional[str] = None):
         """Rate the service quality - RG-BOK-016"""
@@ -457,11 +457,11 @@ class Booking:
         
         self.quality_rating = rating
         self.quality_feedback = feedback
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def _calculate_cancellation_fee(self) -> float:
         """Calculate cancellation fee based on time until appointment - RG-BOK-010"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         time_until = self.scheduled_at - now
         
         if time_until.total_seconds() < 0:
@@ -520,6 +520,6 @@ class Booking:
         """Check if booking can be rescheduled."""
         if self.status not in [BookingStatus.PENDING, BookingStatus.CONFIRMED]:
             return False
-        
-        min_notice_time = datetime.utcnow() + timedelta(hours=self.MIN_RESCHEDULE_NOTICE_HOURS)
+
+        min_notice_time = datetime.now(timezone.utc) + timedelta(hours=self.MIN_RESCHEDULE_NOTICE_HOURS)
         return self.scheduled_at > min_notice_time

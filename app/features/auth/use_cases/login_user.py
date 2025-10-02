@@ -9,7 +9,10 @@ from app.features.auth.ports import (
     ITokenService,
     ICacheService,
 )
-from app.core.errors import AuthenticationError, BusinessRuleViolationError
+from app.features.auth.domain.exceptions import (
+    AuthenticationError,
+    BusinessRuleViolationError,
+)
 
 
 @dataclass

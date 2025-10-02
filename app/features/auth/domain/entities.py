@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 from enum import Enum
 import re
@@ -69,7 +69,7 @@ class User:
         phone_number: Optional[str] = None,
     ) -> "User":
         """Factory method to create a new user."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             id=str(uuid4()),
             email=email.lower().strip(),
@@ -151,7 +151,7 @@ class User:
     def is_locked(self) -> bool:
         """Check if user account is locked."""
         if self.locked_until:
-            return datetime.utcnow() < self.locked_until
+            return datetime.now(timezone.utc) < self.locked_until
         return False
     
     @property
@@ -189,18 +189,18 @@ class User:
     def record_failed_login(self):
         """Record a failed login attempt."""
         self.failed_login_attempts += 1
-        
+
         if self.failed_login_attempts >= self.MAX_LOGIN_ATTEMPTS:
             # Calculate progressive lockout duration
             lockout_multiplier = min(self.failed_login_attempts // self.MAX_LOGIN_ATTEMPTS, 4)
             lockout_duration = self.LOCKOUT_DURATION * lockout_multiplier
-            self.locked_until = datetime.utcnow() + lockout_duration
-    
+            self.locked_until = datetime.now(timezone.utc) + lockout_duration
+
     def record_successful_login(self):
         """Record a successful login."""
         self.failed_login_attempts = 0
         self.locked_until = None
-        self.last_login_at = datetime.utcnow()
+        self.last_login_at = datetime.now(timezone.utc)
     
     def verify_email(self):
         """Mark email as verified."""
@@ -209,15 +209,15 @@ class User:
                 "Email already verified",
                 rule="RG-AUTH-007"
             )
-        
+
         self.email_verified = True
-        self.email_verified_at = datetime.utcnow()
+        self.email_verified_at = datetime.now(timezone.utc)
         self.status = UserStatus.ACTIVE
-    
+
     def change_password(self, new_hashed_password: str):
         """Change user password."""
         self.hashed_password = new_hashed_password
-        self.password_changed_at = datetime.utcnow()
+        self.password_changed_at = datetime.now(timezone.utc)
     
     def update_profile(
         self,
@@ -237,34 +237,34 @@ class User:
         
         self._validate_names()
         self._validate_phone()
-        self.updated_at = datetime.utcnow()
-    
+        self.updated_at = datetime.now(timezone.utc)
+
     def suspend(self):
         """Suspend user account."""
         if self.status == UserStatus.SUSPENDED:
             raise BusinessRuleViolationError("Account already suspended")
-        
+
         self.status = UserStatus.SUSPENDED
-        self.updated_at = datetime.utcnow()
-    
+        self.updated_at = datetime.now(timezone.utc)
+
     def reactivate(self):
         """Reactivate user account."""
         if self.status == UserStatus.ACTIVE:
             raise BusinessRuleViolationError("Account already active")
-        
+
         if self.status == UserStatus.DELETED:
             raise BusinessRuleViolationError("Cannot reactivate deleted account")
-        
+
         self.status = UserStatus.ACTIVE
-        self.updated_at = datetime.utcnow()
-    
+        self.updated_at = datetime.now(timezone.utc)
+
     def soft_delete(self):
         """Soft delete user account."""
         if self.status == UserStatus.DELETED:
             raise BusinessRuleViolationError("Account already deleted")
-        
+
         self.status = UserStatus.DELETED
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 @dataclass
@@ -282,7 +282,7 @@ class PasswordResetToken:
     @classmethod
     def create(cls, user_id: str) -> "PasswordResetToken":
         """Create a new password reset token."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             token=str(uuid4()),
             user_id=user_id,
@@ -290,11 +290,11 @@ class PasswordResetToken:
             expires_at=now + timedelta(hours=cls.EXPIRY_HOURS),
             used=False,
         )
-    
+
     @property
     def is_expired(self) -> bool:
         """Check if token is expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     @property
     def is_valid(self) -> bool:
@@ -328,7 +328,7 @@ class EmailVerificationToken:
     @classmethod
     def create(cls, user_id: str, email: str) -> "EmailVerificationToken":
         """Create a new email verification token."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             token=str(uuid4()),
             user_id=user_id,
@@ -337,11 +337,11 @@ class EmailVerificationToken:
             expires_at=now + timedelta(hours=cls.EXPIRY_HOURS),
             used=False,
         )
-    
+
     @property
     def is_expired(self) -> bool:
         """Check if token is expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     @property
     def is_valid(self) -> bool:
@@ -374,7 +374,7 @@ class RefreshToken:
     @classmethod
     def create(cls, user_id: str) -> "RefreshToken":
         """Create a new refresh token."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return cls(
             token=str(uuid4()),
             user_id=user_id,
@@ -382,11 +382,11 @@ class RefreshToken:
             expires_at=now + timedelta(days=cls.EXPIRY_DAYS),
             revoked=False,
         )
-    
+
     @property
     def is_expired(self) -> bool:
         """Check if token is expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
     
     @property
     def is_valid(self) -> bool:

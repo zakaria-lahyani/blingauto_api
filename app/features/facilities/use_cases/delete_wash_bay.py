@@ -67,12 +67,6 @@ class DeleteWashBayUseCase:
                 code="WASH_BAY_NOT_FOUND"
             )
 
-        # TODO: Check for active bookings
-        # This would be implemented via consumer-owned port if needed:
-        # has_active_bookings = await self._booking_checker.has_active_bookings(wash_bay_id)
-        # if has_active_bookings:
-        #     raise BusinessRuleViolationError("Cannot delete bay with active bookings")
-
         # Perform soft delete
         deleted = await self._repository.delete(request.wash_bay_id)
 

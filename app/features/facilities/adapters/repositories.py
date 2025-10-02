@@ -4,7 +4,7 @@ SQLAlchemy repository implementations for facilities feature.
 Implements repository interfaces from ports layer using SQLAlchemy.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy import select, func, and_
@@ -110,7 +110,7 @@ class SQLAlchemyWashBayRepository(IWashBayRepository):
         model.max_vehicle_size = wash_bay.max_vehicle_size.value
         model.equipment_types = wash_bay.equipment_types
         model.status = wash_bay.status.value
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         if wash_bay.location:
             model.location_latitude = wash_bay.location.latitude
@@ -137,7 +137,7 @@ class SQLAlchemyWashBayRepository(IWashBayRepository):
         if not model:
             return False
 
-        model.deleted_at = datetime.utcnow()
+        model.deleted_at = datetime.now(timezone.utc)
         model.status = ResourceStatus.INACTIVE.value
         await self._session.flush()
         return True
@@ -289,7 +289,7 @@ class SQLAlchemyMobileTeamRepository(IMobileTeamRepository):
         model.daily_capacity = mobile_team.daily_capacity
         model.equipment_types = mobile_team.equipment_types
         model.status = mobile_team.status.value
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         await self._session.flush()
         await self._session.refresh(model)
@@ -309,7 +309,7 @@ class SQLAlchemyMobileTeamRepository(IMobileTeamRepository):
         if not model:
             return False
 
-        model.deleted_at = datetime.utcnow()
+        model.deleted_at = datetime.now(timezone.utc)
         model.status = ResourceStatus.INACTIVE.value
         await self._session.flush()
         return True

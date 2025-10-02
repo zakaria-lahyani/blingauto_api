@@ -1,7 +1,7 @@
 """Record stock in use case."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 import uuid
@@ -70,7 +70,7 @@ class RecordStockInUseCase:
             performed_by_id=request.performed_by_id,
             reason=request.reason,
             notes=request.notes,
-            movement_date=datetime.utcnow(),
+            movement_date=datetime.now(timezone.utc),
         )
 
         # Validate movement

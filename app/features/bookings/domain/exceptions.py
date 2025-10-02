@@ -11,9 +11,17 @@ class BookingsDomainError(Exception):
 
 class ValidationError(BookingsDomainError):
     """Validation error in bookings domain."""
-    pass
+
+    def __init__(self, message: str, field: str = None):
+        self.message = message
+        self.field = field
+        super().__init__(message)
 
 
 class BusinessRuleViolationError(BookingsDomainError):
     """Business rule violation in bookings domain."""
-    pass
+
+    def __init__(self, message: str, rule: str = None):
+        self.message = message
+        self.rule = rule
+        super().__init__(message)

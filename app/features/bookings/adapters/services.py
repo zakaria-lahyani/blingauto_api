@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import uuid
 
@@ -363,7 +363,7 @@ class EventBusService(IEventService):
                 "customer_id": booking.customer_id,
                 "scheduled_at": booking.scheduled_at.isoformat(),
                 "total_price": booking.total_price,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("booking.created", event_data)
@@ -378,7 +378,7 @@ class EventBusService(IEventService):
                 "event_type": "booking_confirmed",
                 "booking_id": booking.id,
                 "customer_id": booking.customer_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("booking.confirmed", event_data)
@@ -400,7 +400,7 @@ class EventBusService(IEventService):
                 "customer_id": booking.customer_id,
                 "cancelled_by": cancelled_by,
                 "reason": reason,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("booking.cancelled", event_data)
@@ -415,7 +415,7 @@ class EventBusService(IEventService):
                 "event_type": "booking_completed",
                 "booking_id": booking.id,
                 "customer_id": booking.customer_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("booking.completed", event_data)
@@ -435,7 +435,7 @@ class EventBusService(IEventService):
                 "booking_id": booking.id,
                 "customer_id": booking.customer_id,
                 "changes": changes,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("booking.updated", event_data)

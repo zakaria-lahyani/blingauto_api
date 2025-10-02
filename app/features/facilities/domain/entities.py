@@ -10,7 +10,7 @@ Implements:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
@@ -89,8 +89,8 @@ class WashBay:
     equipment_types: List[str] = field(default_factory=list)
     status: ResourceStatus = ResourceStatus.ACTIVE
     location: Optional[Location] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Business rule constants - RG-FAC-002
     VEHICLE_SIZE_HIERARCHY = {
@@ -142,17 +142,17 @@ class WashBay:
     def activate(self) -> None:
         """Activate the wash bay - RG-FAC-001"""
         self.status = ResourceStatus.ACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def deactivate(self) -> None:
         """Deactivate the wash bay for maintenance - RG-FAC-001"""
         self.status = ResourceStatus.MAINTENANCE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def update_equipment(self, equipment_types: List[str]) -> None:
         """Update available equipment types"""
         self.equipment_types = equipment_types
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 @dataclass
@@ -172,8 +172,8 @@ class MobileTeam:
     daily_capacity: int = 8  # Default 8 vehicles/day - RG-FAC-003
     equipment_types: List[str] = field(default_factory=list)
     status: ResourceStatus = ResourceStatus.ACTIVE
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self):
         self._validate()
@@ -233,23 +233,23 @@ class MobileTeam:
     def activate(self) -> None:
         """Activate the mobile team"""
         self.status = ResourceStatus.ACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def deactivate(self) -> None:
         """Deactivate the mobile team"""
         self.status = ResourceStatus.INACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def update_service_radius(self, radius_km: Decimal) -> None:
         """Update service radius - RG-FAC-004"""
         if radius_km <= 0:
             raise ValidationError("Service radius must be positive")
         self.service_radius_km = radius_km
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def update_capacity(self, daily_capacity: int) -> None:
         """Update daily capacity - RG-FAC-003"""
         if daily_capacity <= 0:
             raise ValidationError("Daily capacity must be positive")
         self.daily_capacity = daily_capacity
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

@@ -1,4 +1,5 @@
 from typing import Optional, List
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func
 
@@ -262,18 +263,17 @@ class PasswordResetTokenRepository(IPasswordResetTokenRepository):
 
     async def delete_expired(self) -> int:
         """Delete expired tokens."""
-        from datetime import datetime
 
         # Count first
         count_stmt = select(func.count()).select_from(PasswordResetTokenModel).where(
-            PasswordResetTokenModel.expires_at < datetime.utcnow()
+            PasswordResetTokenModel.expires_at < datetime.now(timezone.utc)
         )
         result = await self.session.execute(count_stmt)
         count = result.scalar_one()
 
         # Then delete
         delete_stmt = delete(PasswordResetTokenModel).where(
-            PasswordResetTokenModel.expires_at < datetime.utcnow()
+            PasswordResetTokenModel.expires_at < datetime.now(timezone.utc)
         )
         await self.session.execute(delete_stmt)
 
@@ -343,18 +343,17 @@ class EmailVerificationTokenRepository(IEmailVerificationTokenRepository):
 
     async def delete_expired(self) -> int:
         """Delete expired tokens."""
-        from datetime import datetime
 
         # Count first
         count_stmt = select(func.count()).select_from(EmailVerificationTokenModel).where(
-            EmailVerificationTokenModel.expires_at < datetime.utcnow()
+            EmailVerificationTokenModel.expires_at < datetime.now(timezone.utc)
         )
         result = await self.session.execute(count_stmt)
         count = result.scalar_one()
 
         # Then delete
         delete_stmt = delete(EmailVerificationTokenModel).where(
-            EmailVerificationTokenModel.expires_at < datetime.utcnow()
+            EmailVerificationTokenModel.expires_at < datetime.now(timezone.utc)
         )
         await self.session.execute(delete_stmt)
 
@@ -438,18 +437,17 @@ class RefreshTokenRepository(IRefreshTokenRepository):
 
     async def delete_expired(self) -> int:
         """Delete expired tokens."""
-        from datetime import datetime
 
         # Count first
         count_stmt = select(func.count()).select_from(RefreshTokenModel).where(
-            RefreshTokenModel.expires_at < datetime.utcnow()
+            RefreshTokenModel.expires_at < datetime.now(timezone.utc)
         )
         result = await self.session.execute(count_stmt)
         count = result.scalar_one()
 
         # Then delete
         delete_stmt = delete(RefreshTokenModel).where(
-            RefreshTokenModel.expires_at < datetime.utcnow()
+            RefreshTokenModel.expires_at < datetime.now(timezone.utc)
         )
         await self.session.execute(delete_stmt)
 

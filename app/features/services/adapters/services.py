@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from app.features.services.domain import Category, Service
@@ -205,7 +205,7 @@ class EventBusService(IEventService):
                 "category_id": category.id,
                 "name": category.name,
                 "status": category.status.value,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("category.created", event_data)
             return True
@@ -223,7 +223,7 @@ class EventBusService(IEventService):
                 "event_type": "category_updated",
                 "category_id": category.id,
                 "changes": changes,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("category.updated", event_data)
             return True
@@ -237,7 +237,7 @@ class EventBusService(IEventService):
                 "event_type": "category_deactivated",
                 "category_id": category.id,
                 "name": category.name,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("category.deactivated", event_data)
             return True
@@ -255,7 +255,7 @@ class EventBusService(IEventService):
                 "price": str(service.price),
                 "duration_minutes": service.duration_minutes,
                 "is_popular": service.is_popular,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("service.created", event_data)
             return True
@@ -273,7 +273,7 @@ class EventBusService(IEventService):
                 "event_type": "service_updated",
                 "service_id": service.id,
                 "changes": changes,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("service.updated", event_data)
             return True
@@ -296,7 +296,7 @@ class EventBusService(IEventService):
                 "new_price": str(new_price),
                 "change_amount": str(new_price - old_price),
                 "change_percent": float((new_price - old_price) / old_price * 100) if old_price > 0 else 0,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("service.price_changed", event_data)
             return True
@@ -310,7 +310,7 @@ class EventBusService(IEventService):
                 "event_type": "service_deactivated",
                 "service_id": service.id,
                 "name": service.name,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("service.deactivated", event_data)
             return True
@@ -324,7 +324,7 @@ class EventBusService(IEventService):
                 "event_type": "service_archived",
                 "service_id": service.id,
                 "name": service.name,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("service.archived", event_data)
             return True
@@ -343,7 +343,7 @@ class EventBusService(IEventService):
                 "service_id": service.id,
                 "name": service.name,
                 "is_popular": is_popular,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._event_bus.publish("service.popularity_changed", event_data)
             return True
@@ -496,7 +496,7 @@ class AuditService(IAuditService):
                 "name": category.name,
                 "created_by": created_by,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True
@@ -518,7 +518,7 @@ class AuditService(IAuditService):
                 "updated_by": updated_by,
                 "changes": changes,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True
@@ -541,7 +541,7 @@ class AuditService(IAuditService):
                 "deactivated_by": deactivated_by,
                 "reason": reason,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True
@@ -563,7 +563,7 @@ class AuditService(IAuditService):
                 "price": str(service.price),
                 "created_by": created_by,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True
@@ -585,7 +585,7 @@ class AuditService(IAuditService):
                 "updated_by": updated_by,
                 "changes": changes,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True
@@ -610,7 +610,7 @@ class AuditService(IAuditService):
                 "old_price": str(old_price),
                 "new_price": str(new_price),
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True
@@ -633,7 +633,7 @@ class AuditService(IAuditService):
                 "deactivated_by": deactivated_by,
                 "reason": reason,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._logger.log_audit_event(log_entry)
             return True

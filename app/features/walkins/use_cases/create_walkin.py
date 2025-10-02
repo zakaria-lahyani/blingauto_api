@@ -1,7 +1,7 @@
 """Create walk-in service use case."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 import uuid
@@ -50,7 +50,7 @@ class CreateWalkInUseCase:
         self._validate_request(request)
 
         # Generate service number (WI-20251002-001)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         date_prefix = now.strftime("%Y%m%d")
         service_number = await self._repository.get_next_service_number(date_prefix)
 

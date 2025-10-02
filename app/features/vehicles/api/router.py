@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .schemas import (
     CreateVehicleSchema,
@@ -74,8 +74,8 @@ async def create_vehicle(
             is_default=response.is_default,
             is_deleted=False,
             display_name=response.display_name,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             deleted_at=None,
         )
     except Exception as e:
@@ -150,8 +150,8 @@ async def update_vehicle(
             is_default=response.is_default,
             is_deleted=False,
             display_name=response.display_name,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             deleted_at=None,
         )
     except Exception as e:
@@ -209,8 +209,8 @@ async def set_default_vehicle(
             is_default=True,
             is_deleted=False,
             display_name=response.display_name,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             deleted_at=None,
         )
     except Exception as e:

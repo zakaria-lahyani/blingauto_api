@@ -248,8 +248,11 @@ def register_error_handlers(app):
     app.add_exception_handler(BaseError, base_error_handler)
     logger.info("Registered core BaseError handler")
 
-    # Dynamically import and register auth domain exception handlers
+    # Dynamically import and register all feature domain exception handlers
     # This avoids circular import issues
+    domain_exception_count = 0
+
+    # Auth domain exceptions
     try:
         from app.features.auth.domain.exceptions import (
             AuthenticationError as AuthDomainAuthenticationError,
@@ -268,9 +271,37 @@ def register_error_handlers(app):
         for exception_type, handler in auth_handlers.items():
             app.add_exception_handler(exception_type, handler)
 
+        domain_exception_count += len(auth_handlers)
         logger.info(f"Registered {len(auth_handlers)} auth domain exception handlers")
     except ImportError as e:
         logger.warning(f"Could not register auth domain exception handlers: {e}")
+
+    # Register handlers for other feature domain exceptions
+    # These use the generic handlers since they have the same structure
+    feature_exceptions = [
+        ('bookings', ['ValidationError', 'BusinessRuleViolationError']),
+        ('pricing', ['ValidationError', 'BusinessRuleViolationError']),
+        ('scheduling', ['ValidationError', 'BusinessRuleViolationError']),
+        ('services', ['ValidationError', 'BusinessRuleViolationError']),
+        ('vehicles', ['ValidationError', 'BusinessRuleViolationError']),
+    ]
+
+    for feature_name, exception_names in feature_exceptions:
+        try:
+            module = __import__(f'app.features.{feature_name}.domain.exceptions', fromlist=exception_names)
+            for exc_name in exception_names:
+                if hasattr(module, exc_name):
+                    exc_class = getattr(module, exc_name)
+                    if exc_name == 'ValidationError':
+                        app.add_exception_handler(exc_class, auth_domain_validation_error_handler)
+                    elif exc_name == 'BusinessRuleViolationError':
+                        app.add_exception_handler(exc_class, auth_domain_business_rule_error_handler)
+                    domain_exception_count += 1
+            logger.info(f"Registered {feature_name} domain exception handlers")
+        except (ImportError, AttributeError) as e:
+            logger.warning(f"Could not register {feature_name} domain exception handlers: {e}")
+
+    logger.info(f"Total domain exception handlers registered: {domain_exception_count}")
 
     # Register generic Exception handler last (catches all unhandled exceptions)
     app.add_exception_handler(Exception, generic_exception_handler)

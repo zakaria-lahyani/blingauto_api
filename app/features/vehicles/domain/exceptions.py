@@ -11,9 +11,17 @@ class VehiclesDomainError(Exception):
 
 class ValidationError(VehiclesDomainError):
     """Validation error in vehicles domain."""
-    pass
+
+    def __init__(self, message: str, field: str = None):
+        self.message = message
+        self.field = field
+        super().__init__(message)
 
 
 class BusinessRuleViolationError(VehiclesDomainError):
     """Business rule violation in vehicles domain."""
-    pass
+
+    def __init__(self, message: str, rule: str = None):
+        self.message = message
+        self.rule = rule
+        super().__init__(message)

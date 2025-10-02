@@ -1,7 +1,7 @@
 """Inventory domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -36,8 +36,8 @@ class Product:
     supplier_sku: Optional[str] = None
     is_active: bool = True
     notes: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def get_stock_status(self) -> StockStatus:
         """Get current stock status based on quantity levels."""
@@ -83,7 +83,7 @@ class Product:
             )
 
         self.current_quantity = new_quantity
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 @dataclass
@@ -106,8 +106,8 @@ class StockMovement:
     reference_id: Optional[str] = None  # ID of related entity
     reason: Optional[str] = None
     notes: Optional[str] = None
-    movement_date: datetime = field(default_factory=datetime.utcnow)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    movement_date: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def validate(self) -> None:
         """Validate stock movement data."""
@@ -164,8 +164,8 @@ class Supplier:
     notes: Optional[str] = None
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def validate_rating(self) -> None:
         """Validate supplier rating."""
@@ -184,4 +184,4 @@ class LowStockAlert:
     reorder_point: Decimal
     recommended_order_quantity: Decimal
     stock_status: StockStatus
-    alert_generated_at: datetime = field(default_factory=datetime.utcnow)
+    alert_generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

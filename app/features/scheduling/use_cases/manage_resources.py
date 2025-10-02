@@ -4,7 +4,7 @@ Implements facility management rules RG-FAC-001 to RG-FAC-004.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from decimal import Decimal
 
@@ -172,7 +172,7 @@ class UpdateWashBayUseCase:
             except ValueError:
                 raise ValidationError(f"Invalid status: {updates['status']}")
         
-        wash_bay.updated_at = datetime.utcnow()
+        wash_bay.updated_at = datetime.now(timezone.utc)
         
         # Save changes
         updated_bay = self._wash_bay_repository.update(wash_bay)
@@ -219,7 +219,7 @@ class UpdateMobileTeamUseCase:
             except ValueError:
                 raise ValidationError(f"Invalid status: {updates['status']}")
         
-        mobile_team.updated_at = datetime.utcnow()
+        mobile_team.updated_at = datetime.now(timezone.utc)
         
         # Save changes
         updated_team = self._mobile_team_repository.update(mobile_team)
@@ -317,7 +317,7 @@ class ListResourcesUseCase:
     
     def _calculate_wash_bay_utilization(self, wash_bay: WashBay) -> float:
         """Calculate wash bay utilization for today."""
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         today_bookings = self._time_slot_repository.get_bookings_for_resource(
             wash_bay.id, today, today.replace(hour=23, minute=59, second=59)
         )
@@ -326,7 +326,7 @@ class ListResourcesUseCase:
     
     def _calculate_mobile_team_utilization(self, mobile_team: MobileTeam) -> float:
         """Calculate mobile team utilization for today."""
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         today_bookings = self._time_slot_repository.get_bookings_for_resource(
             mobile_team.id, today, today.replace(hour=23, minute=59, second=59)
         )
@@ -353,8 +353,8 @@ class DeleteResourceUseCase:
         # Check for active bookings
         future_bookings = self._time_slot_repository.get_bookings_for_resource(
             resource_id,
-            datetime.utcnow(),
-            datetime.utcnow().replace(year=datetime.utcnow().year + 1)
+            datetime.now(timezone.utc),
+            datetime.now(timezone.utc).replace(year=datetime.now(timezone.utc).year + 1)
         )
         
         if future_bookings:
@@ -377,7 +377,7 @@ class DeleteResourceUseCase:
                 raise NotFoundError(f"Mobile team {resource_id} not found")
             
             mobile_team.status = ResourceStatus.INACTIVE
-            mobile_team.updated_at = datetime.utcnow()
+            mobile_team.updated_at = datetime.now(timezone.utc)
             self._mobile_team_repository.update(mobile_team)
             return True
         

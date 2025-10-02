@@ -1,6 +1,6 @@
 """Complete walk-in service use case."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.features.walkins.domain.entities import WalkInService
 from app.features.walkins.domain.enums import WalkInStatus, PaymentStatus
@@ -51,7 +51,7 @@ class CompleteWalkInUseCase:
             )
 
         # Complete the walk-in
-        walkin.complete(completed_by_id, datetime.utcnow())
+        walkin.complete(completed_by_id, datetime.now(timezone.utc))
 
         # Update in repository
         updated = await self._repository.update(walkin)

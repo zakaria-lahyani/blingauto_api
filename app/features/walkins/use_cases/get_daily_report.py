@@ -1,6 +1,6 @@
 """Get daily walk-in report use case."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from app.features.walkins.domain.entities import DailyWalkInReport
@@ -29,7 +29,7 @@ class GetDailyReportUseCase:
             ValueError: If date is in the future
         """
         # Validate date
-        if report_date > datetime.utcnow().date():
+        if report_date > datetime.now(timezone.utc).date():
             raise ValueError("Cannot generate report for future dates")
 
         # Get all walk-ins for the date

@@ -1,6 +1,6 @@
 """Walk-in repository implementation."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 import json
@@ -79,7 +79,7 @@ class WalkInRepository(IWalkInRepository):
         model.payment_details = (
             json.loads(walkin.payment_details) if walkin.payment_details else None
         )
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         # Update service items - delete and recreate
         for item in model.service_items:
@@ -213,7 +213,7 @@ class WalkInRepository(IWalkInRepository):
         model = result.scalar_one_or_none()
 
         if model:
-            model.deleted_at = datetime.utcnow()
+            model.deleted_at = datetime.now(timezone.utc)
             await self._session.flush()
 
     def _to_domain(self, model: WalkInServiceModel) -> WalkInService:
@@ -294,8 +294,8 @@ class WalkInRepository(IWalkInRepository):
             payment_details=json.loads(walkin.payment_details)
             if walkin.payment_details
             else None,
-            created_at=walkin.created_at if walkin.created_at else datetime.utcnow(),
-            updated_at=walkin.updated_at if walkin.updated_at else datetime.utcnow(),
+            created_at=walkin.created_at if walkin.created_at else datetime.now(timezone.utc),
+            updated_at=walkin.updated_at if walkin.updated_at else datetime.now(timezone.utc),
         )
 
         # Add service items

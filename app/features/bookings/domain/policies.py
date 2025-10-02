@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Tuple
 
@@ -69,7 +69,7 @@ class BookingValidationPolicy:
     @staticmethod
     def validate_scheduling_time(scheduled_at: datetime) -> bool:
         """Validate scheduling time constraints - RG-BOK-004"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Cannot schedule in the past
         if scheduled_at <= now:
@@ -199,7 +199,7 @@ class CancellationPolicy:
         RG-BOK-010: Cancellation fee schedule
         """
         if cancellation_time is None:
-            cancellation_time = datetime.utcnow()
+            cancellation_time = datetime.now(timezone.utc)
         
         time_until = scheduled_at - cancellation_time
         
@@ -248,7 +248,7 @@ class NoShowPolicy:
     def can_mark_no_show(scheduled_at: datetime, current_time: datetime = None) -> bool:
         """Check if booking can be marked as no-show - RG-BOK-011"""
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
         
         grace_end = scheduled_at + timedelta(minutes=NoShowPolicy.GRACE_PERIOD_MINUTES)
         return current_time >= grace_end
@@ -276,7 +276,7 @@ class ReschedulingPolicy:
     ) -> bool:
         """Check if booking can be rescheduled - RG-BOK-012"""
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
         
         # Can only reschedule pending or confirmed bookings
         if current_status not in [BookingStatus.PENDING, BookingStatus.CONFIRMED]:
@@ -295,7 +295,7 @@ class ReschedulingPolicy:
     ) -> bool:
         """Validate rescheduling with proper errors - RG-BOK-012"""
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
         
         if current_status not in [BookingStatus.PENDING, BookingStatus.CONFIRMED]:
             raise BusinessRuleViolationError(

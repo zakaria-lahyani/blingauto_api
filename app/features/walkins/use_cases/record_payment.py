@@ -1,7 +1,7 @@
 """Record payment for walk-in use case."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -73,7 +73,7 @@ class RecordPaymentUseCase:
             amount=request.amount,
             payment_method=request.payment_method,
             transaction_reference=request.transaction_reference,
-            payment_date=datetime.utcnow(),
+            payment_date=datetime.now(timezone.utc),
             notes=request.notes,
         )
 

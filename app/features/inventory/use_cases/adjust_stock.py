@@ -1,7 +1,7 @@
 """Adjust stock use case."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import uuid
 
@@ -78,7 +78,7 @@ class AdjustStockUseCase:
             performed_by_id=request.performed_by_id,
             reason=request.reason,
             notes=request.notes,
-            movement_date=datetime.utcnow(),
+            movement_date=datetime.now(timezone.utc),
         )
 
         # Validate movement

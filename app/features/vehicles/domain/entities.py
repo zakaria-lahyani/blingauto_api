@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
@@ -19,8 +19,8 @@ class Vehicle:
     license_plate: str = ""
     is_default: bool = False
     is_deleted: bool = False
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     deleted_at: Optional[datetime] = None
     
     @classmethod
@@ -116,7 +116,7 @@ class Vehicle:
         
         # Validate updated data
         self._validate()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def set_as_default(self) -> None:
         """Set this vehicle as the default vehicle."""
@@ -124,12 +124,12 @@ class Vehicle:
             raise BusinessRuleViolationError("Cannot set deleted vehicle as default")
         
         self.is_default = True
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def unset_as_default(self) -> None:
         """Remove default status from this vehicle."""
         self.is_default = False
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def soft_delete(self) -> None:
         """Soft delete the vehicle (RG-VEH-007)."""
@@ -139,8 +139,8 @@ class Vehicle:
             )
         
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
     
     def restore(self) -> None:
         """Restore a soft-deleted vehicle."""
@@ -149,7 +149,7 @@ class Vehicle:
         
         self.is_deleted = False
         self.deleted_at = None
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     @property
     def display_name(self) -> str:

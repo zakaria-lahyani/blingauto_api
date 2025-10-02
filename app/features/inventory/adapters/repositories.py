@@ -1,6 +1,6 @@
 """Inventory repository implementations."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -64,7 +64,7 @@ class ProductRepository(IProductRepository):
         model.supplier_sku = product.supplier_sku
         model.is_active = product.is_active
         model.notes = product.notes
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         await self._session.flush()
         await self._session.refresh(model)
@@ -166,7 +166,7 @@ class ProductRepository(IProductRepository):
         model = result.scalar_one_or_none()
 
         if model:
-            model.deleted_at = datetime.utcnow()
+            model.deleted_at = datetime.now(timezone.utc)
             await self._session.flush()
 
     def _to_domain(self, model: ProductModel) -> Product:
@@ -411,7 +411,7 @@ class SupplierRepository(ISupplierRepository):
         model.is_active = supplier.is_active
         model.rating = supplier.rating
         model.notes = supplier.notes
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         await self._session.flush()
         await self._session.refresh(model)
@@ -455,7 +455,7 @@ class SupplierRepository(ISupplierRepository):
         model = result.scalar_one_or_none()
 
         if model:
-            model.deleted_at = datetime.utcnow()
+            model.deleted_at = datetime.now(timezone.utc)
             await self._session.flush()
 
     def _to_domain(self, model: SupplierModel) -> Supplier:

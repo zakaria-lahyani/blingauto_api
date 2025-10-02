@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from app.features.vehicles.domain import Vehicle
@@ -136,7 +136,7 @@ class EventBusService(IEventService):
                 "model": vehicle.model,
                 "year": vehicle.year,
                 "is_default": vehicle.is_default,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("vehicle.created", event_data)
@@ -156,7 +156,7 @@ class EventBusService(IEventService):
                 "vehicle_id": vehicle.id,
                 "customer_id": vehicle.customer_id,
                 "changes": changes,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("vehicle.updated", event_data)
@@ -174,7 +174,7 @@ class EventBusService(IEventService):
                 "make": vehicle.make,
                 "model": vehicle.model,
                 "year": vehicle.year,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("vehicle.deleted", event_data)
@@ -197,7 +197,7 @@ class EventBusService(IEventService):
                 "new_vehicle_id": new_vehicle.id,
                 "old_vehicle_name": old_vehicle.display_name if old_vehicle else None,
                 "new_vehicle_name": new_vehicle.display_name,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._event_bus.publish("vehicle.default_changed", event_data)
@@ -407,7 +407,7 @@ class AuditService(IAuditService):
                     "is_default": vehicle.is_default,
                 },
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._logger.log_audit_event(log_entry)
@@ -431,7 +431,7 @@ class AuditService(IAuditService):
                 "updated_by": updated_by,
                 "changes": changes,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._logger.log_audit_event(log_entry)
@@ -461,7 +461,7 @@ class AuditService(IAuditService):
                     "license_plate": vehicle.license_plate,
                 },
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._logger.log_audit_event(log_entry)
@@ -486,7 +486,7 @@ class AuditService(IAuditService):
                 "new_vehicle_id": new_vehicle_id,
                 "changed_by": changed_by,
                 "metadata": metadata or {},
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             
             await self._logger.log_audit_event(log_entry)

@@ -1,7 +1,7 @@
 """Expense domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal
 from typing import Optional, List
 
@@ -41,8 +41,8 @@ class Expense:
     rejection_reason: Optional[str] = None
     recurrence_type: RecurrenceType = RecurrenceType.ONE_TIME
     parent_expense_id: Optional[str] = None  # For recurring expense instances
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def approve(self, approved_by_id: str, approval_notes: Optional[str] = None) -> None:
         """Approve expense."""
@@ -52,7 +52,7 @@ class Expense:
         self.status = ExpenseStatus.APPROVED
         self.approved_by_id = approved_by_id
         self.approval_notes = approval_notes
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def reject(self, rejected_by_id: str, rejection_reason: str) -> None:
         """Reject expense."""
@@ -65,7 +65,7 @@ class Expense:
         self.status = ExpenseStatus.REJECTED
         self.approved_by_id = rejected_by_id  # Store who rejected
         self.rejection_reason = rejection_reason
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_as_paid(
         self, paid_by_id: str, payment_method: PaymentMethod, paid_date: date
@@ -80,7 +80,7 @@ class Expense:
         self.paid_by_id = paid_by_id
         self.payment_method = payment_method
         self.paid_date = paid_date
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def cancel(self) -> None:
         """Cancel expense."""
@@ -88,7 +88,7 @@ class Expense:
             raise ValueError("Cannot cancel paid expense")
 
         self.status = ExpenseStatus.CANCELLED
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def is_overdue(self) -> bool:
         """Check if expense payment is overdue."""
@@ -113,8 +113,8 @@ class Budget:
     spent_amount: Decimal = Decimal("0.00")
     alert_threshold_percent: Decimal = Decimal("80.00")  # Alert at 80% spent
     notes: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def get_remaining_amount(self) -> Decimal:
         """Calculate remaining budget."""
@@ -140,7 +140,7 @@ class Budget:
             raise ValueError("Expense amount cannot be negative")
 
         self.spent_amount += amount
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def remove_expense(self, amount: Decimal) -> None:
         """Remove expense from spent amount (e.g., if expense cancelled)."""
@@ -148,7 +148,7 @@ class Budget:
             raise ValueError("Expense amount cannot be negative")
 
         self.spent_amount = max(Decimal("0"), self.spent_amount - amount)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 @dataclass

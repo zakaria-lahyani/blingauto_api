@@ -1,6 +1,6 @@
 """Expense repository implementations."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -61,7 +61,7 @@ class ExpenseRepository(IExpenseRepository):
         model.rejection_reason = expense.rejection_reason
         model.recurrence_type = expense.recurrence_type.value
         model.parent_expense_id = expense.parent_expense_id
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         await self._session.flush()
         await self._session.refresh(model)
@@ -248,7 +248,7 @@ class ExpenseRepository(IExpenseRepository):
         model = result.scalar_one_or_none()
 
         if model:
-            model.deleted_at = datetime.utcnow()
+            model.deleted_at = datetime.now(timezone.utc)
             await self._session.flush()
 
     def _to_domain(self, model: ExpenseModel) -> Expense:
@@ -336,7 +336,7 @@ class BudgetRepository(IBudgetRepository):
         model.spent_amount = budget.spent_amount
         model.alert_threshold_percent = budget.alert_threshold_percent
         model.notes = budget.notes
-        model.updated_at = datetime.utcnow()
+        model.updated_at = datetime.now(timezone.utc)
 
         await self._session.flush()
         await self._session.refresh(model)

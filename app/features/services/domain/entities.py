@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from enum import Enum
@@ -30,8 +30,8 @@ class Category:
     description: str = ""
     status: CategoryStatus = CategoryStatus.ACTIVE
     display_order: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     @classmethod
     def create(
@@ -91,7 +91,7 @@ class Category:
         
         # Validate updated data
         self._validate()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def activate(self) -> None:
         """Activate the category."""
@@ -99,7 +99,7 @@ class Category:
             raise BusinessRuleViolationError("Category is already active")
         
         self.status = CategoryStatus.ACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def deactivate(self) -> None:
         """Deactivate the category (RG-SVC-002)."""
@@ -107,7 +107,7 @@ class Category:
             raise BusinessRuleViolationError("Category is already inactive")
         
         self.status = CategoryStatus.INACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     @property
     def is_active(self) -> bool:
@@ -142,8 +142,8 @@ class Service:
     status: ServiceStatus = ServiceStatus.ACTIVE
     is_popular: bool = False
     display_order: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     @classmethod
     def create(
@@ -233,7 +233,7 @@ class Service:
         
         # Validate updated data
         self._validate()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def update_pricing(self, new_price: Decimal) -> None:
         """Update service pricing with validation."""
@@ -245,7 +245,7 @@ class Service:
         
         # Validate new price
         self._validate()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         
         # Could emit price change event here
     
@@ -255,7 +255,7 @@ class Service:
             raise BusinessRuleViolationError("Only active services can be marked as popular")
         
         self.is_popular = is_popular
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def activate(self) -> None:
         """Activate the service."""
@@ -263,7 +263,7 @@ class Service:
             raise BusinessRuleViolationError("Service is already active")
         
         self.status = ServiceStatus.ACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def deactivate(self) -> None:
         """Deactivate the service."""
@@ -272,7 +272,7 @@ class Service:
         
         self.status = ServiceStatus.INACTIVE
         self.is_popular = False  # Remove popular status when deactivating
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def archive(self) -> None:
         """Archive the service (soft delete)."""
@@ -281,7 +281,7 @@ class Service:
         
         self.status = ServiceStatus.ARCHIVED
         self.is_popular = False  # Remove popular status when archiving
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def restore(self) -> None:
         """Restore archived service to inactive status."""
@@ -289,7 +289,7 @@ class Service:
             raise BusinessRuleViolationError("Can only restore archived services")
         
         self.status = ServiceStatus.INACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     @property
     def is_active(self) -> bool:

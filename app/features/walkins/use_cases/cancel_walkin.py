@@ -1,6 +1,6 @@
 """Cancel walk-in service use case."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.features.walkins.domain.entities import WalkInService
@@ -57,7 +57,7 @@ class CancelWalkInUseCase:
             )
 
         # Cancel the walk-in
-        walkin.cancel(cancelled_by_id, datetime.utcnow(), reason)
+        walkin.cancel(cancelled_by_id, datetime.now(timezone.utc), reason)
 
         # Update in repository
         updated = await self._repository.update(walkin)

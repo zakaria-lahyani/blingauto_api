@@ -4,7 +4,7 @@ Based on requirements RG-FAC-001, RG-FAC-002, RG-SCH-001, RG-SCH-002
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional, Dict, Any, Tuple
@@ -128,8 +128,8 @@ class WashBay:
     equipment_types: List[str] = field(default_factory=list)
     status: ResourceStatus = ResourceStatus.ACTIVE
     location: Optional[Location] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Business rule constants
     VEHICLE_SIZE_HIERARCHY = {
@@ -176,12 +176,12 @@ class WashBay:
     def activate(self) -> None:
         """Activate the wash bay"""
         self.status = ResourceStatus.ACTIVE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
     
     def deactivate(self) -> None:
         """Deactivate the wash bay for maintenance"""
         self.status = ResourceStatus.MAINTENANCE
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 @dataclass
@@ -195,8 +195,8 @@ class MobileTeam:
     daily_capacity: int = 8  # Default 8 vehicles per day
     equipment_types: List[str] = field(default_factory=list)
     status: ResourceStatus = ResourceStatus.ACTIVE
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     def __post_init__(self):
         self._validate()
@@ -336,7 +336,7 @@ class SchedulingConstraints:
     
     def is_valid_booking_time(self, booking_time: datetime) -> bool:
         """Check if booking time meets constraints"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Check minimum advance time
         min_time = now + timedelta(hours=self.min_advance_hours)

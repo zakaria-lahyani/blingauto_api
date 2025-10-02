@@ -175,19 +175,7 @@ class SqlServiceRepository(IServiceRepository):
     def get_multiple_by_ids(self, service_ids: List[str]) -> List[Service]:
         """Get multiple services by their IDs."""
         # Would query services WHERE id IN service_ids
-        services = []
-        for service_id in service_ids:
-            # Mock implementation
-            service = Service.create(
-                category_id="cat_123",
-                name=f"Service {service_id}",
-                description="Mock service",
-                price=Decimal("25.00"),
-                duration_minutes=30,
-            )
-            service.id = service_id
-            services.append(service)
-        return services
+        return []
     
     def search_services(
         self,
@@ -234,8 +222,4 @@ class SqlBookingRepository(IBookingRepository):
     ) -> List[dict]:
         """Get most popular services by booking count."""
         # Query with GROUP BY and ORDER BY count
-        return [
-            {"service_id": "srv_1", "name": "Basic Wash", "booking_count": 150},
-            {"service_id": "srv_2", "name": "Premium Wash", "booking_count": 120},
-            {"service_id": "srv_3", "name": "Interior Clean", "booking_count": 100},
-        ]
+        return []

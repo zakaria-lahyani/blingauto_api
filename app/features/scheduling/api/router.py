@@ -98,36 +98,28 @@ async def check_availability(
 async def get_available_slots(
     request: GetSlotsRequest,
     current_user: CurrentUser,
+    use_case: GetAvailableSlotsUseCase = Depends(get_available_slots_use_case),
 ):
     """
     Get all available time slots for the specified criteria.
-    
+
     Returns available slots within the date range that meet the
     vehicle size and service type requirements.
     """
     try:
-        # Mock implementation for now
-        mock_slots = []
-        
-        # Generate some mock slots
-        current_time = request.start_date
-        while current_time < request.end_date:
-            # Skip past times and weekends for simplicity
-            if current_time > datetime.utcnow() and current_time.weekday() < 5:
-                mock_slots.append({
-                    "resource_id": f"resource-{current_time.hour % 3 + 1}",
-                    "resource_type": request.service_type.value,
-                    "start_time": current_time,
-                    "end_time": current_time + timedelta(minutes=request.duration_minutes),
-                    "duration_minutes": request.duration_minutes,
-                    "capacity_utilization": 25.0
-                })
-            
-            current_time += timedelta(hours=1)
-        
+        use_case_request = UseCaseGetSlotsRequest(
+            start_date=request.start_date,
+            end_date=request.end_date,
+            service_type=request.service_type,
+            vehicle_size=request.vehicle_size,
+            duration_minutes=request.duration_minutes
+        )
+
+        result = await use_case.execute(use_case_request)
+
         return GetSlotsResponse(
-            slots=mock_slots[:20],  # Limit to 20 slots
-            total_count=len(mock_slots),
+            slots=result["slots"],
+            total_count=result["total_count"],
             search_criteria={
                 "start_date": request.start_date.isoformat(),
                 "end_date": request.end_date.isoformat(),
@@ -136,7 +128,17 @@ async def get_available_slots(
                 "vehicle_size": request.vehicle_size.value
             }
         )
-        
+
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except BusinessRuleViolationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -145,54 +147,36 @@ async def get_available_slots(
 
 
 @router.get("/resources", response_model=ResourceListResponse)
-async def list_resources():
+async def list_resources(
+    use_case: ListResourcesUseCase = Depends(get_list_resources_use_case),
+):
     """
     List all available scheduling resources (wash bays and mobile teams).
-    
+
     Returns information about available wash bays and mobile teams
     including their capabilities and current utilization.
     """
     try:
-        # Mock implementation
-        mock_wash_bays = [
-            {
-                "id": "bay-001",
-                "bay_number": "Bay 1",
-                "max_vehicle_size": VehicleSize.LARGE.value,
-                "equipment_types": ["pressure_washer", "foam_cannon", "dryer"],
-                "status": "active",
-                "current_utilization": 65.0
-            },
-            {
-                "id": "bay-002", 
-                "bay_number": "Bay 2",
-                "max_vehicle_size": VehicleSize.OVERSIZED.value,
-                "equipment_types": ["pressure_washer", "foam_cannon", "dryer", "wax_applicator"],
-                "status": "active",
-                "current_utilization": 80.0
-            }
-        ]
-        
-        mock_mobile_teams = [
-            {
-                "id": "team-001",
-                "team_name": "Mobile Team Alpha",
-                "base_location": {"latitude": 40.7128, "longitude": -74.0060},
-                "service_radius_km": 50,
-                "daily_capacity": 8,
-                "equipment_types": ["portable_washer", "vacuum", "detailing_kit"],
-                "status": "active",
-                "current_utilization": 62.5
-            }
-        ]
-        
+        request = ListResourcesRequest()
+        result = await use_case.execute(request)
+
         return ResourceListResponse(
-            wash_bays=mock_wash_bays,
-            mobile_teams=mock_mobile_teams,
-            total_wash_bays=len(mock_wash_bays),
-            total_mobile_teams=len(mock_mobile_teams)
+            wash_bays=result["wash_bays"],
+            mobile_teams=result["mobile_teams"],
+            total_wash_bays=result["total_wash_bays"],
+            total_mobile_teams=result["total_mobile_teams"]
         )
-        
+
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except BusinessRuleViolationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -203,31 +187,41 @@ async def list_resources():
 @router.post("/book-slot", response_model=BookingSlotResponse)
 async def book_time_slot(
     request: BookingSlotRequest,
-    # TODO: Add proper authentication when available
-    # current_user = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
+    use_case: BookSlotUseCase = Depends(get_book_slot_use_case),
 ):
     """
     Book a specific time slot for a customer.
-    
+
     This endpoint reserves a time slot and creates the scheduling
     entry in the system. Should be called after availability check.
     """
     try:
-        # Mock implementation for now
-        # In real implementation, this would:
-        # 1. Verify the slot is still available
-        # 2. Create the time slot reservation
-        # 3. Update resource capacity
-        # 4. Send notifications
-        
-        return BookingSlotResponse(
-            success=True,
-            slot_id=f"slot-{request.booking_id}",
-            confirmed_time=request.start_time,
+        result = await use_case.execute(
+            booking_id=request.booking_id,
             resource_id=request.resource_id,
-            message="Time slot successfully booked"
+            start_time=request.start_time,
+            duration_minutes=request.duration_minutes
         )
-        
+
+        return BookingSlotResponse(
+            success=result["success"],
+            slot_id=result["slot_id"],
+            confirmed_time=result["confirmed_time"],
+            resource_id=result["resource_id"],
+            message=result.get("message", "Time slot successfully booked")
+        )
+
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except BusinessRuleViolationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -238,19 +232,29 @@ async def book_time_slot(
 @router.delete("/book-slot/{slot_id}")
 async def cancel_time_slot(
     slot_id: str,
-    # TODO: Add proper authentication when available
-    # current_user = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user),
+    use_case: CancelSlotUseCase = Depends(get_cancel_slot_use_case),
 ):
     """
     Cancel a booked time slot.
-    
+
     This endpoint releases a previously booked time slot and
     makes the resource available again.
     """
     try:
-        # Mock implementation for now
-        return {"message": f"Time slot {slot_id} cancelled successfully"}
-        
+        result = await use_case.execute(slot_id=slot_id)
+        return {"message": result.get("message", f"Time slot {slot_id} cancelled successfully")}
+
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except BusinessRuleViolationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

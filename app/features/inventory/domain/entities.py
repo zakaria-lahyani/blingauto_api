@@ -17,31 +17,24 @@ from app.features.inventory.domain.enums import (
 class Product:
     """Product entity - items used in car wash services."""
 
+    # Required fields
     id: str
     sku: str  # Stock Keeping Unit (auto-generated: PRD-00001)
     name: str
-    description: Optional[str]
     category: ProductCategory
     unit: ProductUnit
-
-    # Stock levels
     current_quantity: Decimal
     minimum_quantity: Decimal  # Alert threshold
     reorder_point: Decimal  # Reorder when stock reaches this level
-    maximum_quantity: Optional[Decimal] = None  # Max storage capacity
-
-    # Pricing
     unit_cost: Decimal  # Cost per unit
-    unit_price: Optional[Decimal] = None  # Selling price (if sold separately)
 
-    # Supplier info
+    # Optional fields with defaults
+    description: Optional[str] = None
+    maximum_quantity: Optional[Decimal] = None  # Max storage capacity
+    unit_price: Optional[Decimal] = None  # Selling price (if sold separately)
     supplier_id: Optional[str] = None
     supplier_sku: Optional[str] = None
-
-    # Status
     is_active: bool = True
-
-    # Metadata
     notes: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -97,31 +90,22 @@ class Product:
 class StockMovement:
     """Stock movement entity - tracks all inventory changes."""
 
+    # Required fields
     id: str
     product_id: str
     movement_type: StockMovementType
     quantity: Decimal  # Positive for IN, negative for OUT
-
-    # Before and after quantities (for audit trail)
     quantity_before: Decimal
     quantity_after: Decimal
-
-    # Cost tracking
     unit_cost: Decimal  # Cost at time of movement
     total_cost: Decimal  # quantity * unit_cost
-
-    # Reference information
-    reference_type: Optional[str] = None  # "PURCHASE_ORDER", "WALK_IN_SERVICE", etc.
-    reference_id: Optional[str] = None  # ID of related entity
-
-    # User tracking
     performed_by_id: str  # Staff who performed the movement
 
-    # Details
+    # Optional fields with defaults
+    reference_type: Optional[str] = None  # "PURCHASE_ORDER", "WALK_IN_SERVICE", etc.
+    reference_id: Optional[str] = None  # ID of related entity
     reason: Optional[str] = None
     notes: Optional[str] = None
-
-    # Timestamps
     movement_date: datetime = field(default_factory=datetime.utcnow)
     created_at: datetime = field(default_factory=datetime.utcnow)
 

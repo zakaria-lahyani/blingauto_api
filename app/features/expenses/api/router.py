@@ -5,8 +5,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.core.auth.dependencies import get_current_user_id, require_any_role
-from app.features.auth.domain.enums import UserRole
+from app.shared.auth import get_current_user, get_current_user_id, require_any_role
+from app.features.auth.domain import UserRole
 from app.features.expenses.api.dependencies import (
     get_create_expense_use_case,
     get_update_expense_use_case,
@@ -41,18 +41,12 @@ from app.features.expenses.api.schemas import (
 from app.features.expenses.domain.enums import ExpenseCategory, ExpenseStatus
 from app.features.expenses.use_cases.create_expense import CreateExpenseRequest
 from app.features.expenses.use_cases.update_expense import UpdateExpenseRequest
-from app.features.expenses.use_cases.get_expense import GetExpenseRequest
 from app.features.expenses.use_cases.list_expenses import ListExpensesRequest
 from app.features.expenses.use_cases.approve_expense import ApproveExpenseRequest
 from app.features.expenses.use_cases.reject_expense import RejectExpenseRequest
-from app.features.expenses.use_cases.mark_expense_as_paid import MarkExpenseAsPaidRequest
-from app.features.expenses.use_cases.cancel_expense import CancelExpenseRequest
+from app.features.expenses.use_cases.mark_as_paid import MarkAsPaidRequest
 from app.features.expenses.use_cases.create_budget import CreateBudgetRequest
 from app.features.expenses.use_cases.update_budget import UpdateBudgetRequest
-from app.features.expenses.use_cases.get_budget import GetBudgetRequest
-from app.features.expenses.use_cases.list_budgets import ListBudgetsRequest
-from app.features.expenses.use_cases.delete_budget import DeleteBudgetRequest
-from app.features.expenses.use_cases.get_monthly_summary import GetMonthlySummaryRequest
 
 
 router = APIRouter()
@@ -63,7 +57,7 @@ router = APIRouter()
 # ============================================================================
 
 @router.post(
-    "/expenses",
+    "/",
     response_model=ExpenseSchema,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
@@ -120,7 +114,7 @@ async def create_expense(
 
 
 @router.put(
-    "/expenses/{expense_id}",
+    "/{expense_id}",
     response_model=ExpenseSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -177,7 +171,7 @@ async def update_expense(
 
 
 @router.get(
-    "/expenses/{expense_id}",
+    "/{expense_id}",
     response_model=ExpenseSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -186,8 +180,7 @@ async def get_expense(
     use_case: Annotated[object, Depends(get_get_expense_use_case)],
 ) -> ExpenseSchema:
     """Get expense by ID."""
-    request = GetExpenseRequest(expense_id=expense_id)
-    expense = await use_case.execute(request)
+    expense = await use_case.execute(expense_id)
 
     if not expense:
         raise HTTPException(
@@ -223,7 +216,7 @@ async def get_expense(
 
 
 @router.get(
-    "/expenses",
+    "/",
     response_model=ExpenseListSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -283,7 +276,7 @@ async def list_expenses(
 
 
 @router.post(
-    "/expenses/{expense_id}/approve",
+    "/{expense_id}/approve",
     response_model=ExpenseSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -335,7 +328,7 @@ async def approve_expense(
 
 
 @router.post(
-    "/expenses/{expense_id}/reject",
+    "/{expense_id}/reject",
     response_model=ExpenseSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -385,7 +378,7 @@ async def reject_expense(
 
 
 @router.post(
-    "/expenses/{expense_id}/mark-paid",
+    "/{expense_id}/mark-paid",
     response_model=ExpenseSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -396,7 +389,7 @@ async def mark_expense_as_paid(
     use_case: Annotated[object, Depends(get_mark_expense_as_paid_use_case)],
 ) -> ExpenseSchema:
     """Mark expense as paid."""
-    request = MarkExpenseAsPaidRequest(
+    request = MarkAsPaidRequest(
         expense_id=expense_id,
         paid_date=data.paid_date,
         payment_method=data.payment_method,
@@ -439,7 +432,7 @@ async def mark_expense_as_paid(
 
 
 @router.post(
-    "/expenses/{expense_id}/cancel",
+    "/{expense_id}/cancel",
     response_model=ExpenseSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))],
 )
@@ -448,10 +441,8 @@ async def cancel_expense(
     use_case: Annotated[object, Depends(get_cancel_expense_use_case)],
 ) -> ExpenseSchema:
     """Cancel expense."""
-    request = CancelExpenseRequest(expense_id=expense_id)
-
     try:
-        expense = await use_case.execute(request)
+        expense = await use_case.execute(expense_id)
     except LookupError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:
@@ -581,8 +572,7 @@ async def get_budget(
     use_case: Annotated[object, Depends(get_get_budget_use_case)],
 ) -> BudgetSchema:
     """Get budget by ID."""
-    request = GetBudgetRequest(budget_id=budget_id)
-    budget = await use_case.execute(request)
+    budget = await use_case.execute(budget_id)
 
     if not budget:
         raise HTTPException(
@@ -619,13 +609,7 @@ async def list_budgets(
     use_case: Annotated[object, Depends(get_list_budgets_use_case)] = None,
 ) -> BudgetListSchema:
     """List budgets with filters."""
-    request = ListBudgetsRequest(
-        category=category,
-        month=month,
-        over_budget_only=over_budget_only,
-    )
-
-    budgets = await use_case.execute(request)
+    budgets = await use_case.execute(month)
 
     items = [
         BudgetSchema(
@@ -659,8 +643,7 @@ async def delete_budget(
     use_case: Annotated[object, Depends(get_delete_budget_use_case)],
 ) -> None:
     """Delete budget."""
-    request = DeleteBudgetRequest(budget_id=budget_id)
-    await use_case.execute(request)
+    await use_case.execute(budget_id)
 
 
 # ============================================================================
@@ -680,8 +663,8 @@ async def get_monthly_summary(
     # Ensure month is first day of month
     month = month.replace(day=1)
 
-    request = GetMonthlySummaryRequest(month=month)
-    summaries = await use_case.execute(request)
+    # Takes month directly
+    summaries = await use_case.execute(month)
 
     summary_items = [
         ExpenseSummarySchema(

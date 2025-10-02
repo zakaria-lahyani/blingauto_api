@@ -63,7 +63,7 @@ from app.features.staff.use_cases import (
     GetAttendanceReportRequest,
 )
 
-router = APIRouter(prefix="/api/v1/staff", tags=["Staff Management"])
+router = APIRouter()
 
 
 # ============================================================================
@@ -201,8 +201,8 @@ async def list_staff(
 )
 async def get_staff(
     staff_id: str,
+    current_user: CurrentUser,
     use_case=Depends(get_get_staff_use_case),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> StaffSchema:
     """Get staff member by ID."""
     try:
@@ -329,6 +329,7 @@ async def deactivate_staff(
 )
 async def upload_document(
     staff_id: str,
+    current_user: CurrentUser,
     file: UploadFile = File(...),
     document_type: str = Form(...),
     document_name: str = Form(...),
@@ -336,7 +337,6 @@ async def upload_document(
     notes: str = Form(None),
     use_case=Depends(get_upload_document_use_case),
     file_storage=Depends(get_file_storage_service),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> StaffDocumentSchema:
     """Upload staff document."""
     try:
@@ -388,11 +388,11 @@ async def upload_document(
 )
 async def list_documents(
     staff_id: str,
+    current_user: CurrentUser,
     skip: int = 0,
     limit: int = 100,
     use_case=Depends(get_list_documents_use_case),
     file_storage=Depends(get_file_storage_service),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> ListDocumentsSchema:
     """List staff documents."""
     try:
@@ -457,9 +457,9 @@ async def delete_document(
 async def verify_document(
     staff_id: str,
     document_id: str,
+    current_user: CurrentUser,
     use_case=Depends(get_verify_document_use_case),
     file_storage=Depends(get_file_storage_service),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> StaffDocumentSchema:
     """Verify staff document."""
     try:
@@ -499,8 +499,8 @@ async def verify_document(
 )
 async def check_in(
     staff_id: str,
+    current_user: CurrentUser,
     use_case=Depends(get_check_in_staff_use_case),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> CheckInResponseSchema:
     """Check in staff member."""
     try:
@@ -528,8 +528,8 @@ async def check_in(
 )
 async def check_out(
     staff_id: str,
+    current_user: CurrentUser,
     use_case=Depends(get_check_out_staff_use_case),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> CheckOutResponseSchema:
     """Check out staff member."""
     try:
@@ -605,9 +605,9 @@ async def record_attendance(
 )
 async def get_attendance_report(
     staff_id: str,
+    current_user: CurrentUser,
     params: AttendanceQueryParams = Depends(),
     use_case=Depends(get_attendance_report_use_case),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> AttendanceReportSchema:
     """Get attendance report."""
     try:
@@ -726,9 +726,9 @@ async def create_schedule(
 )
 async def get_schedule(
     staff_id: str,
+    current_user: CurrentUser,
     active_only: bool = True,
     use_case=Depends(get_staff_schedule_use_case),
-    current_user: CurrentUser = Depends(get_current_user),
 ) -> ListSchedulesSchema:
     """Get staff schedule."""
     try:

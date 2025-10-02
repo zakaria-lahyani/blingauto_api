@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db.session import get_session
+from app.core.db.session import get_db
 
 # Analytics repositories and data providers
 from app.features.analytics.adapters.repositories import (

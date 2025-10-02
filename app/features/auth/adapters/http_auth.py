@@ -54,6 +54,9 @@ class HttpAuthenticationAdapter:
                 status=user.status.value,
                 created_at=user.created_at,
                 updated_at=user.updated_at,
+                phone_number=user.phone_number,
+                email_verified=user.email_verified,
+                last_login_at=user.last_login_at,
             )
             
         except (AuthenticationError, UserInactiveError) as e:

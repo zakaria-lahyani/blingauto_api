@@ -8,7 +8,7 @@ from datetime import datetime
 @dataclass
 class AuthenticatedUser:
     """Contract for authenticated user information across features."""
-    
+
     id: str
     email: str
     first_name: str
@@ -17,7 +17,10 @@ class AuthenticatedUser:
     status: str
     created_at: datetime
     updated_at: datetime
-    
+    phone_number: Optional[str] = None
+    email_verified: bool = False
+    last_login_at: Optional[datetime] = None
+
     @property
     def full_name(self) -> str:
         """Get user's full name."""

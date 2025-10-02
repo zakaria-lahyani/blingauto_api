@@ -52,7 +52,7 @@ class ListVehiclesUseCase:
         self._vehicle_repository = vehicle_repository
         self._cache_service = cache_service
     
-    def execute(self, request: ListVehiclesRequest) -> ListVehiclesResponse:
+    async def execute(self, request: ListVehiclesRequest) -> ListVehiclesResponse:
         """Execute the list vehicles use case."""
         
         # Step 1: Validate pagination parameters
@@ -67,7 +67,7 @@ class ListVehiclesUseCase:
         # Step 3: Try to get from cache first (for active vehicles only)
         cached_vehicles = None
         if not request.include_deleted and request.page == 1 and request.limit <= 20:
-            cached_vehicles = self._cache_service.get_customer_vehicles(
+            cached_vehicles = await self._cache_service.get_customer_vehicles(
                 request.customer_id, include_deleted=False
             )
         
@@ -80,26 +80,26 @@ class ListVehiclesUseCase:
             paginated_vehicles = vehicles[offset:offset + request.limit]
         else:
             # Get from repository
-            vehicles = self._vehicle_repository.list_by_customer(
+            vehicles = await self._vehicle_repository.list_by_customer(
                 customer_id=request.customer_id,
                 include_deleted=request.include_deleted,
                 offset=offset,
                 limit=request.limit,
             )
-            
+
             # Get total count
-            total_count = self._vehicle_repository.count_by_customer(
+            total_count = await self._vehicle_repository.count_by_customer(
                 request.customer_id, request.include_deleted
             )
-            
+
             paginated_vehicles = vehicles
-            
+
             # Cache active vehicles for future requests
             if not request.include_deleted and request.page == 1:
-                all_active_vehicles = self._vehicle_repository.list_by_customer(
+                all_active_vehicles = await self._vehicle_repository.list_by_customer(
                     request.customer_id, include_deleted=False
                 )
-                self._cache_service.set_customer_vehicles(
+                await self._cache_service.set_customer_vehicles(
                     request.customer_id, all_active_vehicles, include_deleted=False
                 )
         
@@ -129,7 +129,7 @@ class ListVehiclesUseCase:
                 default_vehicle_id = default_in_page.id
             else:
                 # Get default vehicle separately if not in current page
-                default_vehicle = self._vehicle_repository.get_default_vehicle(request.customer_id)
+                default_vehicle = await self._vehicle_repository.get_default_vehicle(request.customer_id)
                 if default_vehicle:
                     default_vehicle_id = default_vehicle.id
         

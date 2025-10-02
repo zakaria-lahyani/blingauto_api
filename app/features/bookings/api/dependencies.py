@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import Depends
 
-from app.core.db import UnitOfWork, get_unit_of_work
+from app.core.db import UnitOfWork, get_unit_of_work, get_db, AsyncSession
 # TODO: Fix service imports - using stubs for now
 def get_email_service():
     """Stub for email service."""
@@ -64,31 +64,31 @@ from app.features.bookings.use_cases import (
 
 
 def get_booking_repository(
-    uow: Annotated[UnitOfWork, Depends(get_unit_of_work)]
+    db: AsyncSession = Depends(get_db)
 ) -> SqlBookingRepository:
     """Get booking repository."""
-    return SqlBookingRepository(uow.session)
+    return SqlBookingRepository(db)
 
 
 def get_service_repository(
-    uow: Annotated[UnitOfWork, Depends(get_unit_of_work)]
+    db: AsyncSession = Depends(get_db)
 ) -> SqlServiceRepository:
     """Get service repository."""
-    return SqlServiceRepository(uow.session)
+    return SqlServiceRepository(db)
 
 
 def get_vehicle_repository(
-    uow: Annotated[UnitOfWork, Depends(get_unit_of_work)]
+    db: AsyncSession = Depends(get_db)
 ) -> SqlVehicleRepository:
     """Get vehicle repository."""
-    return SqlVehicleRepository(uow.session)
+    return SqlVehicleRepository(db)
 
 
 def get_customer_repository(
-    uow: Annotated[UnitOfWork, Depends(get_unit_of_work)]
+    db: AsyncSession = Depends(get_db)
 ) -> SqlCustomerRepository:
     """Get customer repository."""
-    return SqlCustomerRepository(uow.session)
+    return SqlCustomerRepository(db)
 
 
 def get_notification_service(

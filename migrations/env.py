@@ -18,22 +18,27 @@ if config.config_file_name is not None:
 
 # Import your models here for autogenerate support
 try:
-    from app.features.auth.infrastructure.models import *
+    from app.features.auth.adapters.models import *
 except ImportError:
     pass
 
 try:
-    from app.features.services.infrastructure.models import *
+    from app.features.services.adapters.models import *
 except ImportError:
     pass
 
 try:
-    from app.features.vehicles.infrastructure.models import *
+    from app.features.vehicles.adapters.models import *
 except ImportError:
     pass
 
 try:
-    from app.features.bookings.infrastructure.models import *
+    from app.features.bookings.adapters.models import *
+except ImportError:
+    pass
+
+try:
+    from app.features.facilities.adapters.models import *
 except ImportError:
     pass
 
@@ -64,7 +69,7 @@ except ImportError:
 
 # Import the base metadata
 try:
-    from app.core.database import Base
+    from app.core.db import Base
     target_metadata = Base.metadata
 except ImportError:
     try:
@@ -79,8 +84,12 @@ def get_database_url():
     # Try environment variable first
     url = os.getenv("DATABASE_URL")
     if url:
+        # Replace asyncpg with psycopg2 for synchronous migrations
+        # asyncpg is async-only and doesn't work with Alembic's synchronous engine
+        url = url.replace("+asyncpg", "")
+        url = url.replace("postgresql://", "postgresql+psycopg2://")
         return url
-    
+
     # Fall back to config
     return config.get_main_option("sqlalchemy.url")
 

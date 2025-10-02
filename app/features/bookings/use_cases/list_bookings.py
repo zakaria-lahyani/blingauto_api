@@ -54,22 +54,22 @@ class ListBookingsUseCase:
         self._booking_repository = booking_repository
         self._cache_service = cache_service
     
-    def execute(self, request: ListBookingsRequest) -> ListBookingsResponse:
+    async def execute(self, request: ListBookingsRequest) -> ListBookingsResponse:
         """Execute the list bookings use case."""
-        
+
         # Step 1: Validate pagination parameters
         if request.page < 1:
             raise ValidationError("Page must be greater than 0")
         if request.limit < 1 or request.limit > 100:
             raise ValidationError("Limit must be between 1 and 100")
-        
+
         # Step 2: Calculate offset
         offset = (request.page - 1) * request.limit
-        
+
         # Step 3: Try to get from cache for customer-specific requests
         cached_data = None
         if request.customer_id and not request.status and not request.start_date:
-            cached_data = self._cache_service.get_customer_bookings(
+            cached_data = await self._cache_service.get_customer_bookings(
                 request.customer_id, request.page, request.limit
             )
         
@@ -86,16 +86,16 @@ class ListBookingsUseCase:
         
         # Step 4: Query repository based on filters
         bookings = []
-        
+
         if request.customer_id:
-            bookings = self._booking_repository.list_by_customer(
+            bookings = await self._booking_repository.list_by_customer(
                 customer_id=request.customer_id,
                 offset=offset,
                 limit=request.limit,
                 status=request.status,
             )
         elif request.start_date and request.end_date:
-            bookings = self._booking_repository.list_by_date_range(
+            bookings = await self._booking_repository.list_by_date_range(
                 start_date=request.start_date,
                 end_date=request.end_date,
                 offset=offset,
@@ -103,14 +103,14 @@ class ListBookingsUseCase:
                 status=request.status,
             )
         elif request.status:
-            bookings = self._booking_repository.list_by_status(
+            bookings = await self._booking_repository.list_by_status(
                 status=request.status,
                 offset=offset,
                 limit=request.limit,
             )
         else:
             # Default: get recent bookings
-            bookings = self._booking_repository.list_by_date_range(
+            bookings = await self._booking_repository.list_by_date_range(
                 start_date=datetime.now().replace(day=1),  # Start of current month
                 end_date=datetime.now(),
                 offset=offset,
@@ -138,7 +138,7 @@ class ListBookingsUseCase:
         # Step 6: Get total count for pagination
         total_count = 0
         if request.customer_id:
-            total_count = self._booking_repository.count_by_customer(
+            total_count = await self._booking_repository.count_by_customer(
                 request.customer_id, request.status
             )
         else:
@@ -170,7 +170,7 @@ class ListBookingsUseCase:
                 "total_count": total_count,
                 "has_next": has_next,
             }
-            self._cache_service.set_customer_bookings(
+            await self._cache_service.set_customer_bookings(
                 request.customer_id, cache_data, request.page, request.limit
             )
         

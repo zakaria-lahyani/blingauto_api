@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=VehicleListResponseSchema)
-def list_vehicles(
+async def list_vehicles(
     current_user = get_current_user,
     use_case = Depends(get_list_vehicles_use_case)
 ):
@@ -33,8 +33,14 @@ def list_vehicles(
     try:
         from app.features.vehicles.use_cases.list_vehicles import ListVehiclesRequest
         request = ListVehiclesRequest(customer_id=current_user.id)
-        vehicles = use_case.execute(request)
-        return VehicleListResponseSchema(vehicles=vehicles)
+        response = await use_case.execute(request)
+        return VehicleListResponseSchema(
+            vehicles=response.vehicles,
+            total_count=response.total_count,
+            page=response.page,
+            limit=response.limit,
+            has_next=response.has_next
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -43,7 +49,7 @@ def list_vehicles(
 
 
 @router.post("/", response_model=VehicleResponseSchema, status_code=status.HTTP_201_CREATED)
-def create_vehicle(
+async def create_vehicle(
     vehicle_data: CreateVehicleSchema,
     current_user = get_current_user,
     use_case = Depends(get_create_vehicle_use_case)
@@ -55,7 +61,7 @@ def create_vehicle(
             customer_id=current_user.id,
             **vehicle_data.dict()
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         # Convert CreateVehicleResponse to VehicleResponseSchema
         return VehicleResponseSchema(
             id=response.vehicle_id,
@@ -80,7 +86,7 @@ def create_vehicle(
 
 
 @router.get("/{vehicle_id}", response_model=VehicleResponseSchema)
-def get_vehicle(
+async def get_vehicle(
     vehicle_id: str,
     current_user = get_current_user,
     use_case = Depends(get_get_vehicle_use_case)
@@ -92,7 +98,7 @@ def get_vehicle(
             vehicle_id=vehicle_id,
             requested_by=current_user.id
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         # Convert GetVehicleResponse to VehicleResponseSchema
         return VehicleResponseSchema(
             id=response.id,
@@ -117,7 +123,7 @@ def get_vehicle(
 
 
 @router.put("/{vehicle_id}", response_model=VehicleResponseSchema)
-def update_vehicle(
+async def update_vehicle(
     vehicle_id: str,
     vehicle_data: UpdateVehicleSchema,
     current_user = get_current_user,
@@ -131,7 +137,7 @@ def update_vehicle(
             updated_by=current_user.id,
             **vehicle_data.dict(exclude_unset=True)
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         # Convert UpdateVehicleResponse to VehicleResponseSchema
         return VehicleResponseSchema(
             id=response.vehicle_id,
@@ -156,7 +162,7 @@ def update_vehicle(
 
 
 @router.delete("/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_vehicle(
+async def delete_vehicle(
     vehicle_id: str,
     current_user = get_current_user,
     use_case = Depends(get_delete_vehicle_use_case)
@@ -168,7 +174,7 @@ def delete_vehicle(
             vehicle_id=vehicle_id,
             deleted_by=current_user.id
         )
-        use_case.execute(request)
+        await use_case.execute(request)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -177,7 +183,7 @@ def delete_vehicle(
 
 
 @router.put("/{vehicle_id}/default", response_model=VehicleResponseSchema)
-def set_default_vehicle(
+async def set_default_vehicle(
     vehicle_id: str,
     current_user = get_current_user,
     use_case = Depends(get_set_default_vehicle_use_case)
@@ -190,7 +196,7 @@ def set_default_vehicle(
             customer_id=current_user.id,
             changed_by=current_user.id
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         # Convert SetDefaultVehicleResponse to VehicleResponseSchema  
         return VehicleResponseSchema(
             id=response.vehicle_id,

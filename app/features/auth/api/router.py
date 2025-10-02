@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db, UnitOfWork
+from app.shared.auth import AuthenticatedUser
 from app.features.auth.api.schemas import (
     RegisterRequest,
     RegisterResponse,
@@ -102,7 +103,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     Creates a new user account with email verification required.
     The user will receive an email with a verification link.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
         
         use_case = RegisterUserUseCase(
@@ -134,13 +135,13 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticate user and return access and refresh tokens.
-    
+
     Returns JWT access token for API authentication and refresh token
     for obtaining new access tokens.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
-        
+
         use_case = LoginUserUseCase(
             user_repository=deps["user_repo"],
             refresh_token_repository=deps["refresh_token_repo"],
@@ -148,14 +149,14 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             token_service=deps["token_service"],
             cache_service=deps["cache_service"],
         )
-        
+
         use_case_request = LoginUserRequest(
             email=request.email,
             password=request.password,
         )
-        
+
         response = await use_case.execute(use_case_request)
-        
+
         return LoginResponse(
             access_token=response.access_token,
             refresh_token=response.refresh_token,
@@ -173,7 +174,7 @@ async def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_
     
     Returns new access token and optionally rotates the refresh token.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
         
         use_case = RefreshTokenUseCase(
@@ -201,7 +202,7 @@ async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db
     
     Activates the user account after successful email verification.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
         
         use_case = VerifyEmailUseCase(
@@ -226,7 +227,7 @@ async def request_password_reset(
     
     Sends password reset email if the email address exists.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
         
         use_case = RequestPasswordResetUseCase(
@@ -248,7 +249,7 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
     
     Changes the user's password using a valid reset token.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
         
         use_case = ResetPasswordUseCase(
@@ -268,10 +269,10 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(current_user: User = CurrentUser):
+async def get_current_user_profile(current_user: AuthenticatedUser = CurrentUser):
     """
     Get current user profile information.
-    
+
     Returns the authenticated user's profile data.
     """
     return UserResponse(
@@ -280,8 +281,8 @@ async def get_current_user_profile(current_user: User = CurrentUser):
         first_name=current_user.first_name,
         last_name=current_user.last_name,
         full_name=current_user.full_name,
-        role=current_user.role.value,
-        status=current_user.status.value,
+        role=current_user.role,  # Already a string, not an enum
+        status=current_user.status,  # Already a string, not an enum
         phone_number=current_user.phone_number,
         email_verified=current_user.email_verified,
         created_at=current_user.created_at.isoformat(),
@@ -360,7 +361,7 @@ async def update_user_role(
 
     Admin only endpoint to change a user's role.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
 
         use_case = UpdateUserRoleUseCase(
@@ -391,7 +392,7 @@ async def change_password(
     Requires current password for verification. All user sessions will be
     invalidated after password change for security.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
 
         use_case = ChangePasswordUseCase(
@@ -426,7 +427,7 @@ async def update_profile(
     Allows updating first name, last name, and phone number.
     Email cannot be changed through this endpoint.
     """
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
 
         use_case = UpdateProfileUseCase(
@@ -467,7 +468,7 @@ async def logout(
     from fastapi import Request
     from fastapi.security import HTTPBearer
 
-    with UnitOfWork() as uow:
+    async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
 
         # Extract token from Authorization header

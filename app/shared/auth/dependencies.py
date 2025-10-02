@@ -17,7 +17,11 @@ _auth_adapter = None
 
 
 def register_auth_adapter(adapter):
-    """Register the authentication adapter (called from composition root)."""
+    """
+    DEPRECATED: Register the authentication adapter (called from composition root).
+    This is kept for backward compatibility but does nothing.
+    Use per-request dependency injection instead.
+    """
     global _auth_adapter
     _auth_adapter = adapter
 
@@ -29,14 +33,28 @@ async def get_current_user(
     Get current authenticated user from JWT token.
     This is the main dependency for authentication across features.
     """
-    if _auth_adapter is None:
+    # Import here to avoid circular dependencies
+    from app.features.auth.api.dependencies import get_auth_adapter
+    from app.core.db import get_db
+
+    # Get database session
+    db = None
+    try:
+        async for session in get_db():
+            db = session
+            break
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication not properly configured"
+            detail=f"Database connection failed: {str(e)}"
         )
 
+    # Get auth adapter with the db session
+    from app.features.auth.api.dependencies import create_auth_adapter
+    auth_adapter = create_auth_adapter(db)
+
     try:
-        user = await _auth_adapter.authenticate_from_credentials(credentials)
+        user = await auth_adapter.authenticate_from_credentials(credentials)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,6 +69,16 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
         )
+
+
+async def get_current_user_id(
+    current_user: AuthenticatedUser = Depends(get_current_user)
+) -> str:
+    """
+    Get current user ID from authenticated user.
+    This is a convenience dependency for endpoints that only need the user ID.
+    """
+    return current_user.id
 
 
 def require_role(role: str) -> Callable:

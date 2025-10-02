@@ -5,8 +5,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.core.auth.dependencies import require_any_role
-from app.features.auth.domain.enums import UserRole
+from app.shared.auth import require_any_role
+from app.features.auth.domain import UserRole
 from app.features.analytics.api.dependencies import (
     get_revenue_metrics_use_case,
     get_daily_revenue_use_case,
@@ -68,7 +68,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/analytics/revenue/metrics",
+    "/revenue/metrics",
     response_model=RevenueMetricsSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -95,7 +95,7 @@ async def get_revenue_metrics(
 
 
 @router.get(
-    "/analytics/revenue/daily",
+    "/revenue/daily",
     response_model=DailyRevenueListSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -130,7 +130,7 @@ async def get_daily_revenue(
 
 
 @router.get(
-    "/analytics/staff/{staff_id}/performance",
+    "/staff/{staff_id}/performance",
     response_model=StaffPerformanceSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -167,7 +167,7 @@ async def get_staff_performance(
 
 
 @router.get(
-    "/analytics/staff/leaderboard",
+    "/staff/leaderboard",
     response_model=StaffLeaderboardSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -214,7 +214,7 @@ async def get_staff_leaderboard(
 
 
 @router.get(
-    "/analytics/customers/metrics",
+    "/customers/metrics",
     response_model=CustomerMetricsSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -244,7 +244,7 @@ async def get_customer_metrics(
 
 
 @router.get(
-    "/analytics/customers/{customer_id}/behavior",
+    "/customers/{customer_id}/behavior",
     response_model=CustomerBehaviorSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -283,7 +283,7 @@ async def get_customer_behavior(
 
 
 @router.get(
-    "/analytics/financial/kpis",
+    "/financial/kpis",
     response_model=FinancialKPIsSchema,
     dependencies=[Depends(require_any_role(UserRole.ADMIN.value))],
 )
@@ -317,7 +317,7 @@ async def get_financial_kpis(
 
 
 @router.get(
-    "/analytics/services/popularity",
+    "/services/popularity",
     response_model=ServicePopularityListSchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))
@@ -354,7 +354,7 @@ async def get_service_popularity(
 
 
 @router.get(
-    "/analytics/dashboard",
+    "/dashboard",
     response_model=DashboardSummarySchema,
     dependencies=[
         Depends(require_any_role(UserRole.ADMIN.value, UserRole.MANAGER.value))

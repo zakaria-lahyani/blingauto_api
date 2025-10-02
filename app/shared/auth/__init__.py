@@ -3,6 +3,7 @@
 from .contracts import AuthenticatedUser, AuthenticationPort
 from .dependencies import (
     get_current_user,
+    get_current_user_id,
     require_role,
     require_any_role,
     require_admin,
@@ -25,6 +26,7 @@ __all__ = [
     "AuthenticationPort",
     # Dependencies
     "get_current_user",
+    "get_current_user_id",
     "require_role",
     "require_any_role",
     "require_admin",

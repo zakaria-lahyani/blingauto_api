@@ -102,19 +102,9 @@ main() {
     echo -e "${YELLOW}App Version: ${APP_VERSION:-1.0.0}${NC}"
     echo ""
 
-    # Wait for dependent services
-    wait_for_postgres
-    wait_for_redis
-
-    echo ""
-
-    # Run migrations
-    run_migrations
-
-    echo ""
-
-    # Create admin user if needed
-    create_admin_user
+    # Note: Migrations are handled by a separate migrations service in docker-compose
+    # This ensures migrations run once before the API starts
+    # The API service depends on migrations completing successfully
 
     echo ""
     echo -e "${GREEN}==============================================================================${NC}"

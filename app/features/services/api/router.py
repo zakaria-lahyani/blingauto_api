@@ -74,7 +74,7 @@ async def create_category(
             display_order=category_data.display_order,
             created_by=current_user.id,
         )
-        result = use_case.execute(request)
+        result = await use_case.execute(request)
         
         return CreateCategoryResponseSchema(
             category_id=result.category_id,
@@ -110,7 +110,7 @@ async def list_categories(
             include_inactive=include_inactive,
             requesting_user_id=current_user.id,
         )
-        result = use_case.execute(request)
+        result = await use_case.execute(request)
         
         categories = [
             CategoryResponseSchema(
@@ -157,7 +157,7 @@ async def create_service(
             display_order=service_data.display_order,
             created_by=current_user.id,
         )
-        service = use_case.execute(request)
+        service = await use_case.execute(request)
         
         return CreateServiceResponseSchema(
             service_id=service.id,

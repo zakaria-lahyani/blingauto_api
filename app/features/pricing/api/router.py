@@ -3,9 +3,10 @@ Pricing API router.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Optional
+from typing import Annotated, Optional
 
 from .schemas import QuoteRequestSchema, QuoteResponseSchema, QuoteValidationSchema
+from .dependencies import get_calculate_quote_use_case, get_validate_quote_use_case
 from ..use_cases.calculate_quote import CalculateQuoteUseCase, ValidateQuoteUseCase
 from app.core.errors import ValidationError, BusinessRuleViolationError
 
@@ -15,7 +16,7 @@ router = APIRouter()
 @router.post("/quote", response_model=QuoteResponseSchema)
 async def calculate_quote(
     request: QuoteRequestSchema,
-    use_case: CalculateQuoteUseCase = Depends(),
+    use_case: Annotated[CalculateQuoteUseCase, Depends(get_calculate_quote_use_case)],
 ):
     """
     Calculate a price quote for selected services.
@@ -54,7 +55,7 @@ async def calculate_quote(
 @router.get("/quote/{quote_id}/validate", response_model=QuoteValidationSchema)
 async def validate_quote(
     quote_id: str,
-    use_case: ValidateQuoteUseCase = Depends(),
+    use_case: Annotated[ValidateQuoteUseCase, Depends(get_validate_quote_use_case)],
 ):
     """
     Validate that a quote is still valid and get updated pricing if needed.

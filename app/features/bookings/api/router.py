@@ -302,7 +302,7 @@ async def confirm_booking(
             confirmed_by=current_user.id,
             notes=booking_data.notes,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return ConfirmBookingResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -330,7 +330,7 @@ async def start_booking(
             booking_id=booking_id,
             started_by=current_user.id,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return StartBookingResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -360,7 +360,7 @@ async def complete_booking(
             completed_by=current_user.id,
             actual_end_time=booking_data.actual_end_time,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return CompleteBookingResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -390,7 +390,7 @@ async def reschedule_booking(
             rescheduled_by=current_user.id,
             reason=booking_data.reason,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return RescheduleBookingResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -421,7 +421,7 @@ async def add_services_to_booking(
             service_ids=services_data.service_ids,
             added_by=current_user.id,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return AddServicesResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -452,7 +452,7 @@ async def remove_service_from_booking(
             service_ids=[service_id],
             removed_by=current_user.id,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return RemoveServiceResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -484,7 +484,7 @@ async def mark_booking_no_show(
             marked_by=current_user.id,
             reason=no_show_data.reason,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return MarkNoShowResponseSchema(**response.__dict__)
 
     except NotFoundError as e:
@@ -514,7 +514,7 @@ async def rate_booking(
             rating=rating_data.rating,
             feedback=rating_data.feedback,
         )
-        response = use_case.execute(request)
+        response = await use_case.execute(request)
         return RateBookingResponseSchema(**response.__dict__)
 
     except NotFoundError as e:

@@ -5,8 +5,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from app.features.auth.domain.enums import UserRole
-from app.core.auth import get_current_user, require_any_role
+from app.features.auth.domain import UserRole
+from app.shared.auth import get_current_user, require_any_role
 from app.features.walkins.api.schemas import (
     CreateWalkInSchema,
     AddServiceSchema,
@@ -57,7 +57,7 @@ from app.features.walkins.use_cases.list_walkins import (
 )
 from app.features.walkins.use_cases.get_daily_report import GetDailyReportUseCase
 
-router = APIRouter(prefix="/walkins", tags=["Walk-in Services"])
+router = APIRouter()
 
 
 # ============================================================================

@@ -5,8 +5,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from app.features.auth.domain.enums import UserRole
-from app.core.auth import get_current_user, require_any_role
+from app.features.auth.domain import UserRole
+from app.shared.auth import get_current_user, require_any_role
 from app.features.inventory.api.schemas import *
 from app.features.inventory.api.dependencies import *
 from app.features.inventory.use_cases.create_product import CreateProductRequest
@@ -22,7 +22,7 @@ from app.features.inventory.use_cases.create_supplier import CreateSupplierReque
 from app.features.inventory.use_cases.update_supplier import UpdateSupplierRequest
 from app.features.inventory.use_cases.list_suppliers import ListSuppliersRequest
 
-router = APIRouter(prefix="/inventory", tags=["Inventory Management"])
+router = APIRouter()
 
 
 # ============================================================================

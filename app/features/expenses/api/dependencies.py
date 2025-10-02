@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db.session import get_session
+from app.core.db.session import get_db
 from app.features.expenses.adapters.repositories import (
     ExpenseRepository,
     BudgetRepository,
@@ -16,7 +16,7 @@ from app.features.expenses.use_cases.get_expense import GetExpenseUseCase
 from app.features.expenses.use_cases.list_expenses import ListExpensesUseCase
 from app.features.expenses.use_cases.approve_expense import ApproveExpenseUseCase
 from app.features.expenses.use_cases.reject_expense import RejectExpenseUseCase
-from app.features.expenses.use_cases.mark_expense_as_paid import MarkExpenseAsPaidUseCase
+from app.features.expenses.use_cases.mark_as_paid import MarkAsPaidUseCase
 from app.features.expenses.use_cases.cancel_expense import CancelExpenseUseCase
 from app.features.expenses.use_cases.create_budget import CreateBudgetUseCase
 from app.features.expenses.use_cases.update_budget import UpdateBudgetUseCase
@@ -31,14 +31,14 @@ from app.features.expenses.use_cases.get_monthly_summary import GetMonthlySummar
 # ============================================================================
 
 def get_expense_repository(
-    session: Annotated[AsyncSession, Depends(get_session)]
+    session: Annotated[AsyncSession, Depends(get_db)]
 ) -> ExpenseRepository:
     """Get expense repository instance."""
     return ExpenseRepository(session)
 
 
 def get_budget_repository(
-    session: Annotated[AsyncSession, Depends(get_session)]
+    session: Annotated[AsyncSession, Depends(get_db)]
 ) -> BudgetRepository:
     """Get budget repository instance."""
     return BudgetRepository(session)
@@ -93,9 +93,9 @@ def get_reject_expense_use_case(
 
 def get_mark_expense_as_paid_use_case(
     expense_repo: Annotated[ExpenseRepository, Depends(get_expense_repository)]
-) -> MarkExpenseAsPaidUseCase:
+) -> MarkAsPaidUseCase:
     """Get mark expense as paid use case instance."""
-    return MarkExpenseAsPaidUseCase(expense_repo)
+    return MarkAsPaidUseCase(expense_repo)
 
 
 def get_cancel_expense_use_case(

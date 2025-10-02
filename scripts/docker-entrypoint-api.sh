@@ -80,87 +80,18 @@ except:
 EOF
 }
 
-# Wait for database to be ready
-echo -e "${BLUE}→ Waiting for database to be ready...${NC}"
-for i in $(seq 1 $MAX_RETRIES); do
-    if check_database 2>/dev/null; then
-        DB_READY=true
-        echo -e "${GREEN}✓ Database is ready!${NC}"
-        break
-    fi
-
-    if [ $((i % 10)) -eq 0 ]; then
-        echo "  Still waiting for database... (attempt $i/$MAX_RETRIES)"
-    fi
-    sleep $RETRY_INTERVAL
-done
-
-if [ "$DB_READY" = false ]; then
-    echo -e "${RED}✗ Failed to connect to database after $MAX_RETRIES attempts${NC}"
-    exit 1
-fi
-
-# Wait for migrations to be applied
-echo ""
-echo -e "${BLUE}→ Waiting for database migrations to complete...${NC}"
-for i in $(seq 1 $MAX_RETRIES); do
-    version=$(check_migrations 2>/dev/null)
-    if [ $? -eq 0 ]; then
-        MIGRATIONS_READY=true
-        echo -e "${GREEN}✓ Migrations are up to date! (version: $version)${NC}"
-        break
-    fi
-
-    if [ $((i % 10)) -eq 0 ]; then
-        echo "  Still waiting for migrations... (attempt $i/$MAX_RETRIES)"
-    fi
-    sleep $RETRY_INTERVAL
-done
-
-if [ "$MIGRATIONS_READY" = false ]; then
-    echo -e "${YELLOW}⚠ Warning: Migrations may not be applied${NC}"
-    echo "  Continuing anyway... (check migration runner logs)"
-fi
+# Database and migrations are handled via docker-compose depends_on with health checks
+# The migrations service runs first and completes before this API service starts
+# No need for additional waiting here
+echo -e "${BLUE}→ Database and migrations managed by docker-compose dependencies${NC}"
+echo -e "${GREEN}✓ Ready to start API server${NC}"
 
 # Optional: Run initial admin setup if configured
 if [ -n "$INITIAL_ADMIN_EMAIL" ] && [ -n "$INITIAL_ADMIN_PASSWORD" ]; then
     echo ""
-    echo -e "${BLUE}→ Checking initial admin user setup...${NC}"
+    echo -e "${BLUE}→ Running initial admin user setup...${NC}"
 
-    python << 'EOF' || echo -e "${YELLOW}⚠ Admin setup skipped or failed${NC}"
-import sys
-import os
-import asyncio
-sys.path.insert(0, '/app')
-
-async def setup_admin():
-    try:
-        from app.features.auth.application.services.admin_setup_service import create_initial_admin
-        from app.core.db import async_session_maker
-
-        email = os.getenv('INITIAL_ADMIN_EMAIL')
-        password = os.getenv('INITIAL_ADMIN_PASSWORD')
-        first_name = os.getenv('INITIAL_ADMIN_FIRST_NAME', 'Admin')
-        last_name = os.getenv('INITIAL_ADMIN_LAST_NAME', 'User')
-
-        if email and password:
-            async with async_session_maker() as session:
-                admin = await create_initial_admin(
-                    session=session,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name
-                )
-                if admin:
-                    print(f"✓ Initial admin user created: {email}")
-                else:
-                    print(f"✓ Admin user already exists: {email}")
-    except Exception as e:
-        print(f"Warning: Admin setup error: {e}", file=sys.stderr)
-
-asyncio.run(setup_admin())
-EOF
+    python /app/scripts/create_default_admin.py || echo -e "${YELLOW}⚠ Admin setup failed${NC}"
 fi
 
 # Print application info

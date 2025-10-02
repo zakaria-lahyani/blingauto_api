@@ -15,6 +15,10 @@ from app.interfaces.health import router as health_router
 from app.interfaces.openapi import configure_openapi
 from app.shared.auth import register_auth_adapter
 
+# Import all models to ensure relationships are properly configured
+# This must be imported before any feature routers
+import app.core.db.models  # noqa: F401
+
 # Feature routers - each feature provides its own router
 try:
     from app.features.auth.api.router import router as auth_router
@@ -115,41 +119,13 @@ except ImportError as e:
 
 
 def _setup_auth_adapter():
-    """Setup and register the authentication adapter for shared dependencies."""
-    try:
-        from app.features.auth.adapters.http_auth import HttpAuthenticationAdapter
-        from app.features.auth.use_cases.authenticate_user import AuthenticateUserUseCase
-        from app.features.auth.use_cases.check_authorization import (
-            CheckRoleUseCase, CheckPermissionUseCase, CheckStaffUseCase
-        )
-        from app.features.auth.adapters.repositories import UserRepository
-        from app.features.auth.adapters.services import TokenService
-        from app.core.db import get_db
-
-        # Create instances (in production, use proper DI container)
-        db = next(get_db())
-        user_repo = UserRepository(db)
-        token_service = TokenService()
-
-        authenticate_use_case = AuthenticateUserUseCase(user_repo, token_service)
-        check_role_use_case = CheckRoleUseCase()
-        check_permission_use_case = CheckPermissionUseCase()
-        check_staff_use_case = CheckStaffUseCase()
-
-        adapter = HttpAuthenticationAdapter(
-            authenticate_use_case,
-            check_role_use_case,
-            check_permission_use_case,
-            check_staff_use_case,
-        )
-
-        # Register with shared auth dependencies
-        register_auth_adapter(adapter)
-        print("Successfully registered authentication adapter")
-
-    except Exception as e:
-        print(f"Warning: Failed to setup auth adapter: {e}")
-        print("Authentication will not work until this is resolved")
+    """
+    NOTE: This function is deprecated and does nothing.
+    Authentication now uses per-request dependency injection via get_auth_adapter.
+    Keeping this function to avoid breaking the startup flow.
+    """
+    print("Authentication is configured to use per-request dependency injection")
+    pass
 
 
 def create_app() -> FastAPI:
@@ -202,10 +178,10 @@ def create_app() -> FastAPI:
     app.include_router(wash_bays_router, prefix=f"{API_V1_PREFIX}/facilities/wash-bays", tags=["Facilities - Wash Bays"])
     app.include_router(mobile_teams_router, prefix=f"{API_V1_PREFIX}/facilities/mobile-teams", tags=["Facilities - Mobile Teams"])
     app.include_router(staff_router, prefix=f"{API_V1_PREFIX}/staff", tags=["Staff Management"])
-    app.include_router(walkins_router, prefix=f"{API_V1_PREFIX}", tags=["Walk-in Services"])
-    app.include_router(inventory_router, prefix=f"{API_V1_PREFIX}", tags=["Inventory Management"])
-    app.include_router(expenses_router, prefix=f"{API_V1_PREFIX}", tags=["Expense Management"])
-    app.include_router(analytics_router, prefix=f"{API_V1_PREFIX}", tags=["Analytics & Reporting"])
+    app.include_router(walkins_router, prefix=f"{API_V1_PREFIX}/walkins", tags=["Walk-in Services"])
+    app.include_router(inventory_router, prefix=f"{API_V1_PREFIX}/inventory", tags=["Inventory Management"])
+    app.include_router(expenses_router, prefix=f"{API_V1_PREFIX}/expenses", tags=["Expense Management"])
+    app.include_router(analytics_router, prefix=f"{API_V1_PREFIX}/analytics", tags=["Analytics & Reporting"])
 
     # Configure OpenAPI documentation
     configure_openapi(app)

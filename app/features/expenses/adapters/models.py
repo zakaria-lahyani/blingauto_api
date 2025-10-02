@@ -13,7 +13,7 @@ from sqlalchemy import (
     Index,
 )
 
-from app.core.database import Base
+from app.core.db.base import Base
 
 
 class ExpenseModel(Base):
@@ -67,17 +67,10 @@ class ExpenseModel(Base):
     )
     deleted_at = Column(DateTime, nullable=True)
 
-    # Indexes for performance
+    # Indexes for performance (composite indexes only, single-column indexes are defined on the columns)
     __table_args__ = (
-        Index("ix_expenses_expense_number", "expense_number"),
-        Index("ix_expenses_category", "category"),
-        Index("ix_expenses_status", "status"),
-        Index("ix_expenses_expense_date", "expense_date"),
-        Index("ix_expenses_created_by", "created_by_id"),
-        Index("ix_expenses_vendor", "vendor_id"),
         Index("ix_expenses_category_status", "category", "status"),
         Index("ix_expenses_status_date", "status", "expense_date"),
-        Index("ix_expenses_parent", "parent_expense_id"),
     )
 
 
@@ -110,9 +103,7 @@ class BudgetModel(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
-    # Indexes for performance
+    # Indexes for performance (single-column indexes are defined on the columns)
     __table_args__ = (
-        Index("ix_budgets_month", "month"),
-        Index("ix_budgets_category", "category"),
         Index("ix_budgets_category_month", "category", "month", unique=True),
     )

@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from app.core.database import Base
+from app.core.db.base import Base
 
 
 class WalkInServiceModel(Base):
@@ -87,13 +87,11 @@ class WalkInServiceModel(Base):
         lazy="joined",
     )
 
-    # Indexes for performance
+    # Indexes for performance (composite indexes only, single-column indexes are defined on the columns)
     __table_args__ = (
         Index("ix_walkin_services_status_created", "status", "created_at"),
-        Index("ix_walkin_services_payment_status", "payment_status", "created_at"),
+        Index("ix_walkin_services_payment_status_created", "payment_status", "created_at"),
         Index("ix_walkin_services_created_by_date", "created_by_id", "created_at"),
-        Index("ix_walkin_services_started_date", "started_at"),
-        Index("ix_walkin_services_service_number", "service_number"),
     )
 
 

@@ -14,7 +14,7 @@ from sqlalchemy import (
     Index,
 )
 
-from app.core.database import Base
+from app.core.db.base import Base
 
 
 class ProductModel(Base):
@@ -57,13 +57,9 @@ class ProductModel(Base):
     )
     deleted_at = Column(DateTime, nullable=True)
 
-    # Indexes for performance
+    # Indexes for performance (composite indexes only, single-column indexes are defined on the columns)
     __table_args__ = (
-        Index("ix_products_sku", "sku"),
-        Index("ix_products_name", "name"),
         Index("ix_products_category_active", "category", "is_active"),
-        Index("ix_products_supplier", "supplier_id"),
-        Index("ix_products_current_quantity", "current_quantity"),
         Index("ix_products_reorder", "current_quantity", "reorder_point"),
     )
 
@@ -104,15 +100,11 @@ class StockMovementModel(Base):
     movement_date = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # Indexes for performance
+    # Indexes for performance (composite indexes only, single-column indexes are defined on the columns)
     __table_args__ = (
-        Index("ix_stock_movements_product", "product_id"),
-        Index("ix_stock_movements_type", "movement_type"),
-        Index("ix_stock_movements_date", "movement_date"),
         Index("ix_stock_movements_product_date", "product_id", "movement_date"),
         Index("ix_stock_movements_type_date", "movement_type", "movement_date"),
         Index("ix_stock_movements_reference", "reference_type", "reference_id"),
-        Index("ix_stock_movements_performed_by", "performed_by_id"),
     )
 
 
@@ -148,11 +140,7 @@ class SupplierModel(Base):
     )
     deleted_at = Column(DateTime, nullable=True)
 
-    # Indexes for performance
+    # Indexes for performance (single-column indexes are defined on the columns)
     __table_args__ = (
-        Index("ix_suppliers_name", "name"),
-        Index("ix_suppliers_email", "email"),
-        Index("ix_suppliers_phone", "phone"),
-        Index("ix_suppliers_active", "is_active"),
         Index("ix_suppliers_rating", "rating"),
     )

@@ -110,6 +110,16 @@ else
 fi
 
 echo ""
+echo "→ Creating default admin user (if configured)..."
+
+# Create default admin user if environment variables are set
+if python scripts/create_default_admin.py; then
+    echo -e "${GREEN}✓ Admin user setup completed!${NC}"
+else
+    echo -e "${YELLOW}⚠ Warning: Admin user creation had issues (may already exist)${NC}"
+fi
+
+echo ""
 echo "=========================================="
 echo -e "${GREEN}✓ Migration runner completed successfully!${NC}"
 echo "=========================================="

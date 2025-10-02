@@ -15,21 +15,25 @@ class UserModel(Base, TimestampMixin):
     email = Column(String(255), unique=True, nullable=False, index=True)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False, default="client")
-    status = Column(String(20), nullable=False, default="inactive")
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="client", index=True)
+    is_active = Column(Boolean, nullable=False, default=True)
     phone_number = Column(String(20), nullable=True)
-    email_verified = Column(Boolean, nullable=False, default=False)
+    is_email_verified = Column(Boolean, nullable=False, default=False)
     email_verified_at = Column(DateTime(timezone=True), nullable=True)
-    last_login_at = Column(DateTime(timezone=True), nullable=True)
     failed_login_attempts = Column(Integer, nullable=False, default=0)
     locked_until = Column(DateTime(timezone=True), nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     password_changed_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Relationships
-    # vehicles = relationship("Vehicle", back_populates="customer", cascade="all, delete-orphan")  # Will be added when Vehicle is imported
-    bookings = relationship("Booking", back_populates="customer", cascade="all, delete-orphan")
-    
+
+    # Relationships - using lazy='noload' to prevent automatic loading in async context
+    # These relationships can be accessed using explicit queries when needed
+    vehicles = relationship("Vehicle", back_populates="customer", cascade="all, delete-orphan", lazy='noload')
+    bookings = relationship("Booking", back_populates="customer", lazy='noload')
+    password_reset_tokens = relationship("PasswordResetTokenModel", cascade="all, delete-orphan", lazy='noload')
+    email_verification_tokens = relationship("EmailVerificationTokenModel", cascade="all, delete-orphan", lazy='noload')
+    refresh_tokens = relationship("RefreshTokenModel", cascade="all, delete-orphan", lazy='noload')
+
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"
 

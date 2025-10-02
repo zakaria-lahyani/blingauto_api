@@ -4,6 +4,7 @@ from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.shared.auth import AuthenticatedUser
+from app.core.db import get_db
 from ..adapters.http_auth import HttpAuthenticationAdapter
 from ..domain import UserRole
 from ..use_cases.check_authorization import Permission
@@ -11,33 +12,39 @@ from ..use_cases.check_authorization import Permission
 security = HTTPBearer()
 
 
-# Dependency to get the auth adapter
-async def get_auth_adapter() -> HttpAuthenticationAdapter:
-    """Get configured authentication adapter."""
-    # TODO: This should be properly injected via DI container
-    # For now, create instances (this violates DI principles but is a start)
+# This is NOT a dependency - it's a factory function
+# Dependencies should use get_auth_adapter_dep instead
+def create_auth_adapter(db) -> HttpAuthenticationAdapter:
+    """Create authentication adapter with dependencies."""
     from ..use_cases.authenticate_user import AuthenticateUserUseCase
     from ..use_cases.check_authorization import CheckRoleUseCase, CheckPermissionUseCase, CheckStaffUseCase
     from ..adapters.repositories import UserRepository
-    from ..adapters.services import TokenService
-    from app.core.db import get_db
-    
-    # This is a temporary implementation - should use proper DI
-    db = next(get_db())
+    from ..adapters.services import TokenServiceAdapter
+
     user_repo = UserRepository(db)
-    token_service = TokenService()
-    
+    token_service = TokenServiceAdapter()
+
     authenticate_use_case = AuthenticateUserUseCase(user_repo, token_service)
     check_role_use_case = CheckRoleUseCase()
     check_permission_use_case = CheckPermissionUseCase()
     check_staff_use_case = CheckStaffUseCase()
-    
+
     return HttpAuthenticationAdapter(
         authenticate_use_case,
         check_role_use_case,
         check_permission_use_case,
         check_staff_use_case,
     )
+
+
+# Proper async dependency
+async def get_auth_adapter_dep(db = Depends(get_db)) -> HttpAuthenticationAdapter:
+    """Get configured authentication adapter - proper async dependency."""
+    return create_auth_adapter(db)
+
+
+# Keep old name for backward compatibility
+get_auth_adapter = get_auth_adapter_dep
 
 
 async def get_current_user(

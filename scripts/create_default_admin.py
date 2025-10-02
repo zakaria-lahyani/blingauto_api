@@ -1,30 +1,27 @@
 #!/usr/bin/env python3
 """
-Create default admin user on application startup.
+Create default admin user on deployment - Simplified version.
 
-This script creates an initial admin user if one doesn't exist.
-It's designed to be run during Docker container initialization.
+This script creates an initial admin user using direct SQL to avoid
+circular import issues with SQLAlchemy relationships.
 """
 
 import asyncio
 import sys
 import os
 from pathlib import Path
+from datetime import datetime
+import uuid
 
-# Add parent directory to path to import app modules
+# Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from sqlalchemy import text
 
 from app.core.config.settings import settings
-from app.features.auth.domain.entities import User, UserRole, UserStatus
-from app.features.auth.adapters.services import PasswordHasherAdapter
-
-# Import all models to resolve SQLAlchemy relationships
-from app.features.auth.adapters.models import UserModel
-from app.features.bookings.adapters.models import Booking  # Required for UserModel.bookings relationship
+from app.core.security import password_hasher
 
 
 async def create_admin_user(
@@ -34,7 +31,7 @@ async def create_admin_user(
     last_name: str = "User"
 ):
     """
-    Create default admin user if it doesn't exist.
+    Create default admin user using direct SQL to avoid circular imports.
 
     Args:
         email: Admin email address
@@ -62,71 +59,64 @@ async def create_admin_user(
     try:
         async with async_session_factory() as session:
             # Check if admin already exists
-            from sqlalchemy import select
-            stmt = select(UserModel).where(UserModel.email == email.lower())
-            result = await session.execute(stmt)
-            existing_user = result.scalar_one_or_none()
+            check_query = text("SELECT id, email, role, is_active FROM users WHERE email = :email")
+            result = await session.execute(check_query, {"email": email.lower()})
+            existing_user = result.fetchone()
 
             if existing_user:
                 print(f"✓ Admin user already exists: {email}")
-                print(f"  User ID: {existing_user.id}")
-                print(f"  Role: {existing_user.role}")
-                print(f"  Status: {existing_user.status}")
+                print(f"  User ID: {existing_user[0]}")
+                print(f"  Role: {existing_user[2]}")
+                print(f"  Active: {existing_user[3]}")
                 return True
 
-            # Create new admin user
+            # Create new admin user using raw SQL
             print(f"\nCreating new admin user: {email}")
 
             # Hash password
-            password_hasher = PasswordHasherAdapter()
             hashed_password = password_hasher.hash(password)
 
-            # Create user entity
-            admin_user = User.create(
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                hashed_password=hashed_password,
-                role=UserRole.ADMIN,
-            )
+            # Generate UUID
+            user_id = str(uuid.uuid4())
+            now = datetime.utcnow()
 
-            # Override status to ACTIVE and email_verified for admin
-            admin_user.status = UserStatus.ACTIVE
-            admin_user.email_verified = True
-            admin_user.email_verified_at = datetime.utcnow()
+            # Insert user with raw SQL
+            insert_query = text("""
+                INSERT INTO users (
+                    id, email, first_name, last_name, password_hash,
+                    role, is_active, is_email_verified, email_verified_at,
+                    failed_login_attempts, created_at, updated_at
+                ) VALUES (
+                    :id, :email, :first_name, :last_name, :password_hash,
+                    :role, :is_active, :is_email_verified, :email_verified_at,
+                    :failed_login_attempts, :created_at, :updated_at
+                )
+            """)
 
-            # Convert to database model
-            admin_model = UserModel(
-                id=admin_user.id,
-                email=admin_user.email,
-                first_name=admin_user.first_name,
-                last_name=admin_user.last_name,
-                hashed_password=admin_user.hashed_password,
-                role=admin_user.role.value,
-                status=admin_user.status.value,
-                phone_number=admin_user.phone_number,
-                email_verified=admin_user.email_verified,
-                email_verified_at=admin_user.email_verified_at,
-                last_login_at=admin_user.last_login_at,
-                failed_login_attempts=admin_user.failed_login_attempts,
-                locked_until=admin_user.locked_until,
-                password_changed_at=admin_user.password_changed_at,
-                created_at=admin_user.created_at,
-                updated_at=admin_user.updated_at,
-            )
+            await session.execute(insert_query, {
+                "id": user_id,
+                "email": email.lower(),
+                "first_name": first_name,
+                "last_name": last_name,
+                "password_hash": hashed_password,
+                "role": "admin",
+                "is_active": True,
+                "is_email_verified": True,
+                "email_verified_at": now,
+                "failed_login_attempts": 0,
+                "created_at": now,
+                "updated_at": now,
+            })
 
-            # Save to database
-            session.add(admin_model)
             await session.commit()
-            await session.refresh(admin_model)
 
             print(f"\n✓ Admin user created successfully!")
-            print(f"  User ID: {admin_model.id}")
-            print(f"  Email: {admin_model.email}")
-            print(f"  Name: {admin_model.first_name} {admin_model.last_name}")
-            print(f"  Role: {admin_model.role}")
-            print(f"  Status: {admin_model.status}")
-            print(f"  Email Verified: {admin_model.email_verified}")
+            print(f"  User ID: {user_id}")
+            print(f"  Email: {email}")
+            print(f"  Name: {first_name} {last_name}")
+            print(f"  Role: admin")
+            print(f"  Active: True")
+            print(f"  Email Verified: True")
             print(f"\n⚠️  IMPORTANT: Change the admin password after first login!")
 
             return True

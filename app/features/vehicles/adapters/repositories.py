@@ -39,7 +39,7 @@ class SqlVehicleRepository(IVehicleRepository):
         # Hard delete from database (not recommended)
         return True
     
-    def list_by_customer(
+    async def list_by_customer(
         self,
         customer_id: str,
         include_deleted: bool = False,
@@ -49,8 +49,8 @@ class SqlVehicleRepository(IVehicleRepository):
         """List vehicles for a specific customer."""
         # Query database with filters and pagination
         return []
-    
-    def count_by_customer(
+
+    async def count_by_customer(
         self,
         customer_id: str,
         include_deleted: bool = False,
@@ -58,13 +58,13 @@ class SqlVehicleRepository(IVehicleRepository):
         """Count vehicles for a customer."""
         # Count query with filters
         return 0
-    
-    def get_default_vehicle(self, customer_id: str) -> Optional[Vehicle]:
+
+    async def get_default_vehicle(self, customer_id: str) -> Optional[Vehicle]:
         """Get the default vehicle for a customer."""
         # Query for default vehicle
         return None
-    
-    def get_by_license_plate(
+
+    async def get_by_license_plate(
         self,
         license_plate: str,
         customer_id: str,
@@ -72,8 +72,8 @@ class SqlVehicleRepository(IVehicleRepository):
         """Get vehicle by license plate for a specific customer."""
         # Query by license plate and customer
         return None
-    
-    def check_license_plate_exists(
+
+    async def check_license_plate_exists(
         self,
         license_plate: str,
         customer_id: str,
@@ -82,8 +82,8 @@ class SqlVehicleRepository(IVehicleRepository):
         """Check if license plate exists for a customer."""
         # Check existence query
         return False
-    
-    def get_vehicles_by_make_model(
+
+    async def get_vehicles_by_make_model(
         self,
         make: str,
         model: str,
@@ -93,8 +93,8 @@ class SqlVehicleRepository(IVehicleRepository):
         """Get vehicles by make and model for suggestions."""
         # Query by make/model with optional customer filter
         return []
-    
-    def get_popular_makes(self, limit: int = 10) -> List[dict]:
+
+    async def get_popular_makes(self, limit: int = 10) -> List[dict]:
         """Get most popular vehicle makes."""
         # Query with group by and count
         return [

@@ -17,43 +17,30 @@ from app.features.expenses.domain.enums import (
 class Expense:
     """Expense entity - business spending record."""
 
+    # Required fields
     id: str
     expense_number: str  # Auto-generated: EXP-20251002-001
     category: ExpenseCategory
     amount: Decimal
     description: str
-
-    # Status workflow
     status: ExpenseStatus
-    payment_method: Optional[PaymentMethod] = None
-
-    # Dates
     expense_date: date  # When expense occurred
+    created_by_id: str  # Staff who created expense
+
+    # Optional fields with defaults
+    payment_method: Optional[PaymentMethod] = None
     due_date: Optional[date] = None  # Payment due date
     paid_date: Optional[date] = None  # Actual payment date
-
-    # Tracking
-    created_by_id: str  # Staff who created expense
     approved_by_id: Optional[str] = None  # Manager/Admin who approved
     paid_by_id: Optional[str] = None  # Staff who processed payment
-
-    # Vendor/Supplier
     vendor_name: Optional[str] = None
     vendor_id: Optional[str] = None  # Link to suppliers (string-based FK)
-
-    # Documentation
     receipt_url: Optional[str] = None  # Receipt/invoice file
     notes: Optional[str] = None
-
-    # Approval workflow
     approval_notes: Optional[str] = None
     rejection_reason: Optional[str] = None
-
-    # Recurrence (for recurring expenses)
     recurrence_type: RecurrenceType = RecurrenceType.ONE_TIME
     parent_expense_id: Optional[str] = None  # For recurring expense instances
-
-    # Metadata
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -115,17 +102,16 @@ class Expense:
 class Budget:
     """Budget entity - monthly budget allocation per category."""
 
+    # Required fields
     id: str
     category: ExpenseCategory
     month: date  # First day of month (2025-10-01)
     budgeted_amount: Decimal
-    spent_amount: Decimal = Decimal("0.00")
-
-    # Alerts
-    alert_threshold_percent: Decimal = Decimal("80.00")  # Alert at 80% spent
-
-    # Metadata
     created_by_id: str
+
+    # Optional fields with defaults
+    spent_amount: Decimal = Decimal("0.00")
+    alert_threshold_percent: Decimal = Decimal("80.00")  # Alert at 80% spent
     notes: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)

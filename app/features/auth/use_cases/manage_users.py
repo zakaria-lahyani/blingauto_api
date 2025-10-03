@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional, List
 
 from app.features.auth.domain import User, UserRole, UserStatus, RoleTransitionPolicy
@@ -62,18 +62,35 @@ class GetUserUseCase:
         self.cache_service = cache_service
     
     async def execute(self, request: GetUserRequest) -> UserResponse:
-        """Get user by ID with caching."""
-        
-        # Try cache first
-        cached_user = await self.cache_service.get_user(request.user_id)
-        if cached_user:
-            return UserResponse(**cached_user)
-        
-        # Get from repository
+        """Get user by ID with caching and graceful degradation."""
+
+        # Try cache first (but don't fail if it's broken)
+        try:
+            cached_user = await self.cache_service.get_user(request.user_id)
+            if cached_user:
+                try:
+                    return UserResponse(**cached_user)
+                except TypeError as e:
+                    # Cache data is corrupted, log and fall back to DB
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Corrupted cache data for user {request.user_id}: {e}. "
+                        f"Fetching from database instead."
+                    )
+                    # Invalidate bad cache
+                    await self.cache_service.delete_user(request.user_id)
+        except Exception as e:
+            # Cache read failed completely, log and continue
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Cache read error for user {request.user_id}: {e}")
+
+        # Get from repository (always works)
         user = await self.user_repository.get_by_id(request.user_id)
         if not user:
             raise NotFoundError("User", request.user_id)
-        
+
         response = UserResponse(
             id=user.id,
             email=user.email,
@@ -87,14 +104,19 @@ class GetUserUseCase:
             created_at=user.created_at.isoformat(),
             last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,
         )
-        
-        # Cache for future requests
-        await self.cache_service.set_user(
-            user_id=user.id,
-            user_data=response.__dict__,
-            ttl=300,
-        )
-        
+
+        # Try to cache for future requests (but don't fail if caching fails)
+        try:
+            await self.cache_service.set_user(
+                user_id=user.id,
+                user_data=asdict(response),
+                ttl=300,
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to cache user {user.id}: {e}")
+
         return response
 
 

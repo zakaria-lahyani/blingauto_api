@@ -379,7 +379,7 @@ async def update_user_role(
         use_case_request = UpdateUserRoleUseCaseRequest(
             user_id=user_id,
             new_role=UserRole(request.role),
-            initiator_role=current_user.role.value,
+            initiator_role=current_user.role,
         )
 
         response = await use_case.execute(use_case_request)
@@ -449,7 +449,7 @@ async def update_profile(
             phone_number=request.phone_number,
         )
 
-        response = use_case.execute(use_case_request)
+        response = await use_case.execute(use_case_request)
 
         return UpdateProfileResponse(
             user_id=response.user_id,

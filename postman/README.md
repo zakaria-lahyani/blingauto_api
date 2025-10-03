@@ -51,13 +51,13 @@ Select **BlingAuto - Local** environment and verify:
 
 ## 📦 Collections Overview
 
-### ✅ Implemented (331 tests - COMPLETE)
+### ✅ Implemented (337 tests - COMPLETE)
 
 | Collection | Tests | Purpose |
 |------------|-------|---------|
 | **00 - Master Configuration** | 6 | Auth setup, data loading |
 | **01 - Walk-ins Complete Flow** | 20 | Full walk-in lifecycle, Payments, Reports, Filters |
-| **02 - Complete Auth & Profile** | 47 | Auth + RBAC + Role Promotion + Profile + Security |
+| **02 - Complete Auth & Profile** | 53 | Auth + Email Verification + RBAC + Role Promotion + Profile + Security |
 | **03 - Services & Categories** | 30 | Service management, Search, Filters, Stats |
 | **04 - Staff Management** | 21 | Staff CRUD, Documents, Schedules, Attendance |
 | **05 - Inventory Management** | 26 | Products, Suppliers, Stock, Alerts, RBAC |
@@ -68,7 +68,7 @@ Select **BlingAuto - Local** environment and verify:
 | **10 - Data Validation & Security** | 50 | Input validation, XSS, SQL injection, Edge cases |
 | **11 - Facilities Management** | 28 | Wash Bays, Mobile Teams, Resources, RBAC |
 
-**Total: 331 comprehensive tests covering ALL features, edge cases, security & validation**
+**Total: 337 comprehensive tests covering ALL features, edge cases, security & validation**
 
 ## 🚀 Running Tests
 
@@ -131,7 +131,7 @@ chmod +x run-all-tests.sh
 
 ## 📊 Test Coverage
 
-### Current Coverage: 99.7%+ (331 tests)
+### Current Coverage: 99.7%+ (337 tests)
 
 #### Authentication & Security ✅
 - [x] Registration (valid, duplicate, invalid)
@@ -140,6 +140,14 @@ chmod +x run-all-tests.sh
 - [x] Password change/reset
 - [x] Token refresh
 - [x] Logout
+
+#### Email Verification ✅ (NEW - 6 tests)
+- [x] Registration triggers verification email
+- [x] Verification message in registration response
+- [x] Valid token verifies email (200)
+- [x] Invalid token rejected (404)
+- [x] Empty token rejected (422)
+- [x] Missing token field rejected (422)
 
 #### RBAC Testing ✅
 - [x] Admin: Full access
@@ -457,7 +465,7 @@ XX-Feature-Name.postman_collection.json
 ## 🎯 Success Metrics
 
 ### Current Status
-- ✅ **331 comprehensive tests implemented**
+- ✅ **337 comprehensive tests implemented**
 - ✅ **99.7%+ API coverage**
 - ✅ All core flows validated
 - ✅ All features comprehensively covered

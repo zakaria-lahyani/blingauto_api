@@ -128,6 +128,15 @@ class RedisClient:
         except:
             return False
 
+    def scan_iter(self, match: str = None, count: int = 100):
+        """Iterate over keys matching a pattern."""
+        if not self._client:
+            return iter([])
+        try:
+            return self._client.scan_iter(match=match, count=count)
+        except:
+            return iter([])
+
 
 # Singleton instance
 redis_client = RedisClient()

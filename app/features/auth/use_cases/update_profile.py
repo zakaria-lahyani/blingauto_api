@@ -48,7 +48,7 @@ class UpdateProfileUseCase:
         self._user_repository = user_repository
         self._cache_service = cache_service
 
-    def execute(self, request: UpdateProfileRequest) -> UpdateProfileResponse:
+    async def execute(self, request: UpdateProfileRequest) -> UpdateProfileResponse:
         """Execute the update profile use case."""
 
         # Step 1: Validate at least one field is being updated
@@ -56,7 +56,7 @@ class UpdateProfileUseCase:
             raise ValidationError("At least one field must be provided for update")
 
         # Step 2: Retrieve user
-        user = self._user_repository.get_by_id(request.user_id)
+        user = await self._user_repository.get_by_id(request.user_id)
         if not user:
             raise NotFoundError(f"User {request.user_id} not found")
 
@@ -79,10 +79,10 @@ class UpdateProfileUseCase:
             user.phone_number = phone if phone else None
 
         # Step 4: Save updated user
-        updated_user = self._user_repository.update(user)
+        updated_user = await self._user_repository.update(user)
 
         # Step 5: Invalidate user cache
-        self._cache_service.invalidate_user_cache(request.user_id)
+        await self._cache_service.invalidate_user_cache(request.user_id)
 
         return UpdateProfileResponse(
             user_id=updated_user.id,

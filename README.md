@@ -1,3 +1,29 @@
+# Stopper et supprimer tous les conteneurs
+docker stop $(docker ps -aq) 
+docker rm -f $(docker ps -aq) 
+
+# Supprimer toutes les images
+docker rmi -f $(docker images -q) 
+
+# Supprimer tous les volumes
+docker volume rm $(docker volume ls -q) 
+
+# Nettoyer tout le reste (dangling, networks orphelins…)
+docker system prune -af --volumes
+
+# Rebuild et lancer via docker-compose
+docker-compose -f docker-compose.yml build --no-cache
+docker-compose -f docker-compose.yml up -d  
+docker-compose exec api python scripts/seed_test_users.py
+
+
+cd /c/Users/zak/Desktop/workspace/project/lavage/api/blingauto_api/postman/scripts && powershell -ExecutionPolicy Bypass -File ./check-and-verify-users.ps1
+
+docker exec blingauto-postgres psql -U blingauto_user -d blingauto -c "SELECT u.id, u.email, u.first_name, u.last_name, u.is_email_verified, u.created_at as user_created_at, evt.token, evt.created_at as token_created_at, evt.expires_at, evt.is_used FROM users u LEFT JOIN email_verification_tokens evt ON u.email = evt.email WHERE u.is_email_verified = FALSE ORDER BY u.created_at DESC;"
+
+docker exec blingauto-postgres psql -U blingauto_user -d blingauto -c "SELECT u.id, u.email, u.first_name, u.last_name, u.is_email_verified, u.created_at as user_created_at, evt.token, evt.created_at as token_created_at, evt.expires_at, evt.used FROM users u LEFT JOIN email_verification_tokens evt ON u.email = evt.email WHERE u.is_email_verified = FALSE ORDER BY u.created_at DESC;"
+
+
 # BlingAuto Car Wash Management API
 
 A production-ready, enterprise-grade car wash management system built with **Clean Architecture** principles, featuring comprehensive booking management, scheduling, inventory tracking, and business analytics.

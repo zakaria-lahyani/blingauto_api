@@ -238,40 +238,73 @@ class EmailServiceAdapter(IEmailService):
 class CacheServiceAdapter(ICacheService):
     """Adapter for cache service using Redis."""
 
+    # Cache version - increment when schema changes
+    CACHE_VERSION = "v2"
+
+    # Required fields for user cache validation
+    REQUIRED_USER_FIELDS = {
+        'id', 'email', 'first_name', 'last_name', 'full_name',
+        'role', 'status', 'phone_number', 'email_verified',
+        'created_at', 'last_login_at'
+    }
+
     def __init__(self):
         """Initialize cache service with Redis client."""
         self.redis = redis_client
 
     async def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Get cached user data."""
+        """Get cached user data with validation."""
         try:
             import json
-            data = self.redis.get(f"user:{user_id}")
+            key = f"user:{self.CACHE_VERSION}:{user_id}"
+            data = self.redis.get(key)
             if data:
-                return json.loads(data) if isinstance(data, (str, bytes)) else data
+                cached = json.loads(data) if isinstance(data, (str, bytes)) else data
+
+                # Validate cache structure
+                if not isinstance(cached, dict):
+                    logger.warning(f"Invalid cache type for user {user_id}: {type(cached)}")
+                    self.redis.delete(key)
+                    return None
+
+                missing_fields = self.REQUIRED_USER_FIELDS - set(cached.keys())
+                if missing_fields:
+                    logger.warning(
+                        f"Invalid cache structure for user {user_id}, "
+                        f"missing fields: {missing_fields}. Invalidating cache."
+                    )
+                    self.redis.delete(key)
+                    return None
+
+                return cached
             return None
         except Exception as e:
-            logger.error(f"Failed to get user from cache: {str(e)}")
+            logger.error(f"Failed to get user from cache: {str(e)}", exc_info=True)
             return None
 
     async def set_user(self, user_id: str, user_data: Dict[str, Any], ttl: int = 300) -> bool:
-        """Cache user data."""
+        """Cache user data with version."""
         try:
-            return self.redis.set(
-                f"user:{user_id}",
-                user_data,
-                ttl=ttl
-            )
+            key = f"user:{self.CACHE_VERSION}:{user_id}"
+            return self.redis.set(key, user_data, ttl=ttl)
         except Exception as e:
-            logger.error(f"Failed to set user in cache: {str(e)}")
+            logger.error(f"Failed to set user in cache: {str(e)}", exc_info=True)
             return False
 
     async def delete_user(self, user_id: str) -> bool:
-        """Delete cached user data."""
+        """Delete cached user data (all versions)."""
         try:
-            return self.redis.delete(f"user:{user_id}") > 0
+            # Delete current version
+            current_key = f"user:{self.CACHE_VERSION}:{user_id}"
+            deleted = self.redis.delete(current_key)
+
+            # Also try to delete old version keys if they exist
+            old_key = f"user:{user_id}"  # v1 format
+            self.redis.delete(old_key)
+
+            return deleted > 0
         except Exception as e:
-            logger.error(f"Failed to delete user from cache: {str(e)}")
+            logger.error(f"Failed to delete user from cache: {str(e)}", exc_info=True)
             return False
 
     def invalidate_user_cache(self, user_id: str) -> bool:

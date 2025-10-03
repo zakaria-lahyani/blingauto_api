@@ -36,9 +36,12 @@ from .ports.services import IDistanceCalculationService
 
 # Infrastructure exports
 from app.features.scheduling.adapters.models import (
-    WashBay as WashBayModel, MobileTeam as MobileTeamModel,
     TimeSlot as TimeSlotModel, SchedulingConstraints as ConstraintsModel,
     BusinessHours as BusinessHoursModel
+)
+# WashBay and MobileTeam models belong to facilities feature
+from app.features.facilities.adapters.models import (
+    WashBayModel, MobileTeamModel
 )
 from .adapters.repositories import (
     WashBayRepository, MobileTeamRepository,

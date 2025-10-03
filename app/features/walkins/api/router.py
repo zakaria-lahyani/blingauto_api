@@ -105,7 +105,7 @@ async def create_walkin(
             license_plate=data.license_plate,
             customer_name=data.customer_name,
             customer_phone=data.customer_phone,
-            created_by_id=current_user["user_id"],
+            created_by_id=current_user.id,
             notes=data.notes,
         )
 
@@ -726,7 +726,7 @@ async def complete_walkin(
     **Auto-calculated**: Service duration
     """
     try:
-        walkin = await use_case.execute(walkin_id, current_user["user_id"])
+        walkin = await use_case.execute(walkin_id, current_user.id)
 
         return WalkInServiceSchema(
             id=walkin.id,
@@ -808,7 +808,7 @@ async def cancel_walkin(
     """
     try:
         walkin = await use_case.execute(
-            walkin_id, current_user["user_id"], data.reason
+            walkin_id, current_user.id, data.reason
         )
 
         return WalkInServiceSchema(

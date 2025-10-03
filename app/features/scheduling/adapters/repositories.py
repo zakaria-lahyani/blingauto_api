@@ -14,7 +14,11 @@ from ..domain.entities import (
     Location, VehicleSize, ResourceStatus, ResourceType
 )
 from app.features.scheduling.adapters.models import (
-    WashBay, MobileTeam, TimeSlot, SchedulingConstraints
+    TimeSlot, SchedulingConstraints
+)
+# Import facilities models (WashBay and MobileTeam belong to facilities feature)
+from app.features.facilities.adapters.models import (
+    WashBayModel as WashBay, MobileTeamModel as MobileTeam
 )
 from ..ports.repositories import (
     IWashBayRepository, IMobileTeamRepository,

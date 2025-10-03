@@ -42,49 +42,50 @@ class CreateCategoryUseCase:
         self._event_service = event_service
         self._audit_service = audit_service
     
-    def execute(self, request: CreateCategoryRequest) -> CreateCategoryResponse:
+    async def execute(self, request: CreateCategoryRequest) -> CreateCategoryResponse:
         """Execute the create category use case."""
-        
+
         # Step 1: Check if category name already exists
-        existing_categories = self._category_repository.list_all(include_inactive=True)
-        
+        existing_categories = await self._category_repository.list_all(include_inactive=True)
+
         CategoryManagementPolicy.validate_category_name_uniqueness(
             request.name,
             "",  # No category ID for new category
             existing_categories,
         )
-        
+
         # Step 2: Create category entity
         category = Category.create(
             name=request.name,
             description=request.description,
             display_order=request.display_order,
         )
-        
+
         # Step 3: Validate category with policy
         CategoryManagementPolicy.validate_category_creation(category)
-        
+
         # Step 4: Save category to repository
-        saved_category = self._category_repository.create(category)
-        
+        saved_category = await self._category_repository.create(category)
+
         # Step 5: Clear cache
-        self._cache_service.invalidate_services_cache()
-        
+        await self._cache_service.invalidate_services_cache()
+
         # Step 6: Publish domain event
-        self._event_service.publish_category_created(saved_category)
-        
+        await self._event_service.publish_category_created(saved_category)
+
         # Step 7: Log audit event
-        self._audit_service.log_category_creation(
+        status_value = saved_category.status.value if hasattr(saved_category.status, 'value') else saved_category.status
+        await self._audit_service.log_category_creation(
             saved_category,
             request.created_by,
-            {"initial_status": saved_category.status.value}
+            {"initial_status": status_value}
         )
-        
+
         # Step 8: Prepare response
         return CreateCategoryResponse(
             category_id=saved_category.id,
             name=saved_category.name,
             description=saved_category.description,
-            status=saved_category.status.value,
+            status=status_value,
             display_order=saved_category.display_order,
         )

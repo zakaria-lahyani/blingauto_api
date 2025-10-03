@@ -87,8 +87,21 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 async def http_exception_handler(request: Request, exc: Union[HTTPException, StarletteHTTPException]) -> JSONResponse:
     """Handle HTTP exceptions."""
+    import traceback
+
+    logger.warning(f"===== HTTP EXCEPTION HANDLER =====")
+    logger.warning(f"Request URL: {request.url}")
+    logger.warning(f"Request method: {request.method}")
     logger.warning(f"HTTP exception: {exc.status_code} - {exc.detail}")
-    
+
+    # For 500 errors, log the full traceback
+    if exc.status_code >= 500:
+        logger.error(f"Exception type: {type(exc)}")
+        logger.error(f"Exception attributes: {dir(exc)}")
+        if hasattr(exc, '__traceback__'):
+            logger.error("Full traceback:")
+            logger.error(''.join(traceback.format_tb(exc.__traceback__)))
+
     # Map status codes to error codes
     error_code_map = {
         400: "BAD_REQUEST",
@@ -104,15 +117,15 @@ async def http_exception_handler(request: Request, exc: Union[HTTPException, Sta
         503: "SERVICE_UNAVAILABLE",
         504: "GATEWAY_TIMEOUT"
     }
-    
+
     error_code = error_code_map.get(exc.status_code, "HTTP_ERROR")
-    
+
     error_response = ErrorResponse(
         error_code=error_code,
         message=str(exc.detail),
         status_code=exc.status_code
     )
-    
+
     return JSONResponse(
         status_code=error_response.status_code,
         content=error_response.to_dict()
@@ -138,6 +151,14 @@ async def base_error_handler(request: Request, exc: BaseError) -> JSONResponse:
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
+    import traceback
+    logger.error(f"===== GENERIC EXCEPTION HANDLER =====")
+    logger.error(f"Request URL: {request.url}")
+    logger.error(f"Request method: {request.method}")
+    logger.error(f"Exception type: {type(exc)}")
+    logger.error(f"Exception message: {exc}")
+    logger.error("Full traceback:")
+    logger.error(traceback.format_exc())
     logger.error(f"Unexpected error: {exc}", exc_info=True)
 
     error_response = ErrorResponse(
@@ -280,7 +301,8 @@ def register_error_handlers(app):
     # These use the generic handlers since they have the same structure
     feature_exceptions = [
         ('bookings', ['ValidationError', 'BusinessRuleViolationError']),
-        ('pricing', ['ValidationError', 'BusinessRuleViolationError']),
+        # Pricing feature removed
+        # ('pricing', ['ValidationError', 'BusinessRuleViolationError']),
         ('scheduling', ['ValidationError', 'BusinessRuleViolationError']),
         ('services', ['ValidationError', 'BusinessRuleViolationError']),
         ('vehicles', ['ValidationError', 'BusinessRuleViolationError']),

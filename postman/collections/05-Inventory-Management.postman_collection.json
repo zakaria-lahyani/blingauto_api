@@ -1,0 +1,842 @@
+{
+	"info": {
+		"_postman_id": "inventory-management",
+		"name": "05 - Inventory Management Complete Testing",
+		"description": "Comprehensive inventory testing - Products, Stock movements, Suppliers, Alerts",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Product Management",
+			"item": [
+				{
+					"name": "Create Product - Auto SKU",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response).to.have.property('sku');",
+									"    pm.expect(response.sku).to.match(/^PRD-\\d{5}$/);",
+									"    pm.expect(response.stock_status).to.exist;",
+									"    pm.environment.set('test_product_id', response.id);",
+									"    pm.environment.set('test_product_sku', response.sku);",
+									"    console.log('✓ Product created:', response.sku);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Car Shampoo\",\n  \"description\": \"High quality car shampoo\",\n  \"category\": \"cleaning_supplies\",\n  \"unit\": \"bottle\",\n  \"minimum_quantity\": 10,\n  \"reorder_point\": 15,\n  \"maximum_quantity\": 100,\n  \"unit_cost\": 12.50,\n  \"unit_price\": 25.00,\n  \"initial_quantity\": 50,\n  \"notes\": \"Stock for testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"]
+						}
+					}
+				},
+				{
+					"name": "Get Product by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.id).to.equal(pm.environment.get('test_product_id'));",
+									"    pm.expect(response).to.have.property('stock_value');",
+									"    pm.expect(response).to.have.property('needs_reorder');",
+									"    pm.expect(response.stock_status).to.be.oneOf(['in_stock', 'low_stock', 'out_of_stock']);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{test_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{test_product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "List Products - All",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Products listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products?limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"],
+							"query": [{"key": "limit", "value": "50"}]
+						}
+					}
+				},
+				{
+					"name": "List Products - By Category",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Filtered products listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products?category=cleaning_supplies",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"],
+							"query": [{"key": "category", "value": "cleaning_supplies"}]
+						}
+					}
+				},
+				{
+					"name": "Update Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.unit_price).to.equal('29.99');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"unit_price\": 29.99,\n  \"reorder_point\": 20\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{test_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{test_product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Product - Admin Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product deleted (204)\", function() {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{test_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{test_product_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Stock Movement",
+			"item": [
+				{
+					"name": "Setup - Create Product for Stock Tests",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Stock test product created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    pm.environment.set('stock_test_product_id', pm.response.json().id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Stock Test Product\",\n  \"category\": \"tools\",\n  \"unit\": \"piece\",\n  \"minimum_quantity\": 5,\n  \"reorder_point\": 10,\n  \"unit_cost\": 5.00,\n  \"unit_price\": 10.00,\n  \"initial_quantity\": 20\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"]
+						}
+					}
+				},
+				{
+					"name": "Record Stock In - Purchase",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Stock in recorded (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.movement_type).to.equal('in');",
+									"    pm.expect(response.quantity).to.equal(30);",
+									"    pm.expect(response).to.have.property('quantity_after');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": 30,\n  \"unit_cost\": 4.50,\n  \"reference_type\": \"purchase_order\",\n  \"reference_id\": \"PO-001\",\n  \"reason\": \"Stock replenishment\",\n  \"notes\": \"Bulk purchase discount\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{stock_test_product_id}}/stock/in",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{stock_test_product_id}}", "stock", "in"]
+						}
+					}
+				},
+				{
+					"name": "Record Stock Out - Usage",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Stock out recorded (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.movement_type).to.equal('out');",
+									"    pm.expect(response.quantity).to.equal(15);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": 15,\n  \"reference_type\": \"walkin_service\",\n  \"reason\": \"Used in service\",\n  \"notes\": \"Service completion\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{stock_test_product_id}}/stock/out",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{stock_test_product_id}}", "stock", "out"]
+						}
+					}
+				},
+				{
+					"name": "Adjust Stock - Manual Correction",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Stock adjusted (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.movement_type).to.equal('adjustment');",
+									"    pm.expect(response).to.have.property('reason');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"new_quantity\": 40,\n  \"reason\": \"Physical count correction\",\n  \"notes\": \"Inventory audit\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{stock_test_product_id}}/stock/adjust",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{stock_test_product_id}}", "stock", "adjust"]
+						}
+					}
+				},
+				{
+					"name": "List Stock Movements",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Stock movements listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response.items.length).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/stock-movements?product_id={{stock_test_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "stock-movements"],
+							"query": [{"key": "product_id", "value": "{{stock_test_product_id}}"}]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Supplier Management",
+			"item": [
+				{
+					"name": "Create Supplier",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Supplier created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.name).to.equal('Test Supplier Co');",
+									"    pm.expect(response.contact_name).to.equal('John Smith');",
+									"    pm.expect(response.is_active).to.be.true;",
+									"    pm.environment.set('test_supplier_id', response.id);",
+									"    console.log('✓ Supplier created:', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Supplier Co\",\n  \"contact_name\": \"John Smith\",\n  \"contact_email\": \"john@testsupplier.com\",\n  \"contact_phone\": \"555-9876\",\n  \"address\": \"123 Supplier Street\",\n  \"payment_terms\": \"Net 30\",\n  \"notes\": \"Primary supplier for cleaning products\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/suppliers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "suppliers"]
+						}
+					}
+				},
+				{
+					"name": "Get Supplier by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Supplier retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.id).to.equal(pm.environment.get('test_supplier_id'));",
+									"    pm.expect(response.payment_terms).to.equal('Net 30');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/suppliers/{{test_supplier_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "suppliers", "{{test_supplier_id}}"]
+						}
+					}
+				},
+				{
+					"name": "List All Suppliers",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Suppliers listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/suppliers?limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "suppliers"],
+							"query": [{"key": "limit", "value": "50"}]
+						}
+					}
+				},
+				{
+					"name": "Update Supplier",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Supplier updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.payment_terms).to.equal('Net 45');",
+									"    pm.expect(response.contact_phone).to.equal('555-1111');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"payment_terms\": \"Net 45\",\n  \"contact_phone\": \"555-1111\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/suppliers/{{test_supplier_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "suppliers", "{{test_supplier_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Deactivate Supplier - Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Supplier deleted (204)\", function() {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/suppliers/{{test_supplier_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "suppliers", "{{test_supplier_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Advanced Stock Scenarios",
+			"item": [
+				{
+					"name": "Setup - Create Low Stock Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Low stock product created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('low_stock_product_id', response.id);",
+									"    pm.expect(response.needs_reorder).to.be.true;",
+									"    pm.expect(response.stock_status).to.equal('low_stock');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Low Stock Test Product\",\n  \"category\": \"cleaning_supplies\",\n  \"unit\": \"bottle\",\n  \"minimum_quantity\": 20,\n  \"reorder_point\": 25,\n  \"unit_cost\": 8.00,\n  \"unit_price\": 15.00,\n  \"initial_quantity\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"]
+						}
+					}
+				},
+				{
+					"name": "Stock Out - Negative Quantity (✗ Error)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Negative quantity rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": -5,\n  \"reason\": \"Invalid test\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{low_stock_product_id}}/stock/out",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{low_stock_product_id}}", "stock", "out"]
+						}
+					}
+				},
+				{
+					"name": "Stock Out - Exceeding Available (✗ Error)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Exceeding stock rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": 100,\n  \"reference_type\": \"walkin_service\",\n  \"reason\": \"Usage\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{low_stock_product_id}}/stock/out",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{low_stock_product_id}}", "stock", "out"]
+						}
+					}
+				},
+				{
+					"name": "Stock Movement - Filter by Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Movements filtered by type (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    response.items.forEach(item => {",
+									"        pm.expect(item.movement_type).to.equal('in');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/stock-movements?movement_type=in&limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "stock-movements"],
+							"query": [
+								{"key": "movement_type", "value": "in"},
+								{"key": "limit", "value": "50"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Stock Movement - Date Range Filter",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const startDate = new Date(today);",
+									"startDate.setDate(today.getDate() - 7);",
+									"pm.environment.set('start_date', startDate.toISOString().split('T')[0]);",
+									"pm.environment.set('end_date', today.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Movements filtered by date (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/stock-movements?start_date={{start_date}}&end_date={{end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "stock-movements"],
+							"query": [
+								{"key": "start_date", "value": "{{start_date}}"},
+								{"key": "end_date", "value": "{{end_date}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Inventory Alerts",
+			"item": [
+				{
+					"name": "Get Low Stock Alerts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Low stock alerts retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    if (response.items.length > 0) {",
+									"        const alert = response.items[0];",
+									"        pm.expect(alert).to.have.property('product_id');",
+									"        pm.expect(alert).to.have.property('current_quantity');",
+									"        pm.expect(alert).to.have.property('reorder_point');",
+									"        pm.expect(alert.current_quantity).to.be.at.most(alert.reorder_point);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/alerts/low-stock",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "alerts", "low-stock"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "RBAC - Inventory Access Control",
+			"item": [
+				{
+					"name": "Client - Create Product (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client cannot create products (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Unauthorized Product\",\n  \"category\": \"tools\",\n  \"unit\": \"piece\",\n  \"unit_cost\": 5.00,\n  \"unit_price\": 10.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"]
+						}
+					}
+				},
+				{
+					"name": "Washer - Delete Product (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot delete products (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{stock_test_product_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{stock_test_product_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Manager - View Low Stock Alerts (✓)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can view alerts (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/alerts/low-stock",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "alerts", "low-stock"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

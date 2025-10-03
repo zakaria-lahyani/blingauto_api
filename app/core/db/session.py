@@ -40,13 +40,19 @@ AsyncSessionLocal = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Async dependency to get database session."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    session = AsyncSessionLocal()
+    try:
+        yield session
+        await session.commit()
+    except GeneratorExit:
+        # Handle generator cleanup - rollback but don't raise
+        await session.rollback()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        # Ensure session is properly closed
+        await session.close()
 
 
 @asynccontextmanager

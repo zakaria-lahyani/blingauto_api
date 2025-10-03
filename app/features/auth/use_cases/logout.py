@@ -43,17 +43,17 @@ class LogoutUseCase:
         self._token_repository = token_repository
         self._cache_service = cache_service
 
-    def execute(self, request: LogoutRequest) -> LogoutResponse:
+    async def execute(self, request: LogoutRequest) -> LogoutResponse:
         """Execute the logout use case."""
 
         # Step 1: Verify user exists
-        user = self._user_repository.get_by_id(request.user_id)
+        user = await self._user_repository.get_by_id(request.user_id)
         if not user:
             raise NotFoundError(f"User {request.user_id} not found")
 
         # Step 2: Revoke all refresh tokens for this user
         # This ensures user must re-authenticate on all devices
-        self._token_repository.revoke_all_user_tokens(request.user_id)
+        await self._token_repository.revoke_all_for_user(request.user_id)
 
         # Step 3: Blacklist current access token
         # Token remains blacklisted until its natural expiry

@@ -1,0 +1,729 @@
+{
+	"info": {
+		"_postman_id": "data-validation-security",
+		"name": "10 - Data Validation & Advanced Security",
+		"description": "Comprehensive input validation, XSS prevention, injection attacks, and security edge cases",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Input Validation - String Fields",
+			"item": [
+				{
+					"name": "Create Service - Empty Name (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Empty name rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"\",\n  \"category_id\": \"{{test_category_id}}\",\n  \"base_price\": 50.00,\n  \"estimated_duration\": 30\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/services",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "services"]
+						}
+					}
+				},
+				{
+					"name": "Create Service - Whitespace Only Name (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Whitespace-only name rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"   \",\n  \"category_id\": \"{{test_category_id}}\",\n  \"base_price\": 50.00,\n  \"estimated_duration\": 30\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/services",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "services"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile - Extremely Long Name (✗)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set('long_name', 'A'.repeat(1000));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Extremely long name rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"{{long_name}}\",\n  \"last_name\": \"Test\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Input Validation - Numeric Fields",
+			"item": [
+				{
+					"name": "Create Product - Zero Price (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Zero price rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Invalid Product\",\n  \"category\": \"supplies\",\n  \"unit\": \"piece\",\n  \"unit_cost\": 0.00,\n  \"unit_price\": 0.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"]
+						}
+					}
+				},
+				{
+					"name": "Stock Out - String Instead of Number (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"String quantity rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": \"ten\",\n  \"reason\": \"Invalid test\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products/{{stock_test_product_id}}/stock/out",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products", "{{stock_test_product_id}}", "stock", "out"]
+						}
+					}
+				},
+				{
+					"name": "Create Booking - Negative Service Price (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Negative price rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\"],\n  \"scheduled_at\": \"{{requested_time}}\",\n  \"total_price\": -100.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "XSS & Script Injection Prevention",
+			"item": [
+				{
+					"name": "Create Walkin - XSS in Customer Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"XSS script sanitized or rejected (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 201, 400, 422]);",
+									"    if (pm.response.code === 201 || pm.response.code === 200) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.customer_name).to.not.include('<script>');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_name\": \"<script>alert('XSS')</script>John Doe\",\n  \"customer_phone\": \"555-1234\",\n  \"vehicle_make\": \"Toyota\",\n  \"vehicle_model\": \"Camry\",\n  \"vehicle_color\": \"Blue\",\n  \"vehicle_size\": \"standard\",\n  \"license_plate\": \"XSS123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/walkins",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "walkins"]
+						}
+					}
+				},
+				{
+					"name": "Create Service - HTML Tags in Description",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"HTML tags sanitized or rejected (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 201, 400, 422]);",
+									"    if (pm.response.code === 201 || pm.response.code === 200) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.description).to.not.include('<img');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"XSS Test Service\",\n  \"category_id\": \"{{test_category_id}}\",\n  \"base_price\": 50.00,\n  \"estimated_duration\": 30,\n  \"description\": \"<img src=x onerror=alert('XSS')>Test\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/services",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "services"]
+						}
+					}
+				},
+				{
+					"name": "Update Expense - Script in Notes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Script in notes sanitized (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"<script>document.cookie</script>Normal note\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{test_expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{test_expense_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "SQL Injection Prevention",
+			"item": [
+				{
+					"name": "Search Services - SQL Injection Attempt",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL injection blocked (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 400]);",
+									"    if (pm.response.code === 200) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.items).to.be.an('array');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/services?search=' OR '1'='1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "services"],
+							"query": [{"key": "search", "value": "' OR '1'='1"}]
+						}
+					}
+				},
+				{
+					"name": "Get User - SQL Injection in ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL injection in ID blocked (400/404)\", function() {",
+									"    pm.response.to.be.oneOf([400, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/1' OR '1'='1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "1' OR '1'='1"]
+						}
+					}
+				},
+				{
+					"name": "Filter Walkins - SQL Comment Injection",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL comment injection blocked (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 400]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/walkins?status=completed'--",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "walkins"],
+							"query": [{"key": "status", "value": "completed'--"}]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Email & Phone Validation",
+			"item": [
+				{
+					"name": "Register - Invalid Email Format (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid email format rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"ValidPass123!\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register - Email with Spaces (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Email with spaces rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test @example.com\",\n  \"password\": \"ValidPass123!\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Create Walkin - Invalid Phone Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid phone handled (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 201, 400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_name\": \"Test Customer\",\n  \"customer_phone\": \"not-a-phone-number\",\n  \"vehicle_make\": \"Toyota\",\n  \"vehicle_model\": \"Camry\",\n  \"vehicle_color\": \"Blue\",\n  \"vehicle_size\": \"standard\",\n  \"license_plate\": \"TEST123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/walkins",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "walkins"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Date & DateTime Validation",
+			"item": [
+				{
+					"name": "Create Booking - Invalid Date Format (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid date format rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\"],\n  \"scheduled_at\": \"not-a-date\",\n  \"booking_type\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Create Expense - Future Date in Past Field (✗)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const future = new Date();",
+									"future.setFullYear(future.getFullYear() + 10);",
+									"pm.environment.set('future_date', future.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Unrealistic future date handled (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 201, 400]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"utilities\",\n  \"amount\": 100.00,\n  \"description\": \"Future expense test\",\n  \"payment_method\": \"cash\",\n  \"expense_date\": \"{{future_date}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Boundary Value Testing",
+			"item": [
+				{
+					"name": "Create Product - Maximum Valid Price",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Maximum price accepted (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Max Price Product\",\n  \"category\": \"supplies\",\n  \"unit\": \"piece\",\n  \"unit_cost\": 99999.99,\n  \"unit_price\": 99999.99\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/products",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "inventory", "products"]
+						}
+					}
+				},
+				{
+					"name": "Apply Discount - 100% (Edge Case)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"100% discount handled (200/400)\", function() {",
+									"    pm.response.to.be.oneOf([200, 400]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"discount_percent\": 100,\n  \"discount_reason\": \"Full comp\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/discount",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "walkins", "{{walkin_id}}", "discount"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Malformed JSON & Content-Type",
+			"item": [
+				{
+					"name": "Create Service - Malformed JSON (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Malformed JSON rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"name\": \"Test\", invalid json}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/services",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "services"]
+						}
+					}
+				},
+				{
+					"name": "Create Booking - Wrong Content-Type (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wrong content-type rejected (415/400)\", function() {",
+									"    pm.response.to.be.oneOf([400, 415]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "text/plain"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"customer_id\": \"test\"}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

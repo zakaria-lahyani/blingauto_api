@@ -257,11 +257,10 @@ class CacheServiceAdapter(ICacheService):
     async def set_user(self, user_id: str, user_data: Dict[str, Any], ttl: int = 300) -> bool:
         """Cache user data."""
         try:
-            import json
-            return self.redis.setex(
+            return self.redis.set(
                 f"user:{user_id}",
-                ttl,
-                json.dumps(user_data)
+                user_data,
+                ttl=ttl
             )
         except Exception as e:
             logger.error(f"Failed to set user in cache: {str(e)}")
@@ -307,7 +306,7 @@ class CacheServiceAdapter(ICacheService):
         """Blacklist a token until its expiry."""
         try:
             # Store token in blacklist with TTL matching token expiry
-            return self.redis.setex(f"blacklist:token:{token}", ttl, "1")
+            return self.redis.set(f"blacklist:token:{token}", "1", ttl=ttl)
         except Exception as e:
             logger.error(f"Failed to blacklist token: {str(e)}")
             return False
@@ -335,11 +334,10 @@ class CacheServiceAdapter(ICacheService):
     async def set_session(self, session_id: str, session_data: Dict[str, Any], ttl: int = 900) -> bool:
         """Cache session data."""
         try:
-            import json
-            return self.redis.setex(
+            return self.redis.set(
                 f"session:{session_id}",
-                ttl,
-                json.dumps(session_data)
+                session_data,
+                ttl=ttl
             )
         except Exception as e:
             logger.error(f"Failed to set session in cache: {str(e)}")

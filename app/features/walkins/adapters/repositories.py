@@ -128,10 +128,80 @@ class WalkInRepository(IWalkInRepository):
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
-    async def list_by_date(self, service_date: date) -> List[WalkInService]:
-        """List walk-ins by date."""
-        start_datetime = datetime.combine(service_date, datetime.min.time())
-        end_datetime = datetime.combine(service_date, datetime.max.time())
+    async def list(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        status: Optional[WalkInStatus] = None,
+        payment_status: Optional[PaymentStatus] = None,
+        staff_id: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[WalkInService]:
+        """List walk-in services with filters."""
+        conditions = [WalkInServiceModel.deleted_at.is_(None)]
+
+        if status:
+            conditions.append(WalkInServiceModel.status == status.value)
+
+        if payment_status:
+            conditions.append(WalkInServiceModel.payment_status == payment_status.value)
+
+        if staff_id:
+            conditions.append(WalkInServiceModel.created_by_id == staff_id)
+
+        if start_date:
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+            conditions.append(WalkInServiceModel.started_at >= start_datetime)
+
+        if end_date:
+            end_datetime = datetime.combine(end_date, datetime.max.time())
+            conditions.append(WalkInServiceModel.started_at <= end_datetime)
+
+        stmt = (
+            select(WalkInServiceModel)
+            .where(and_(*conditions))
+            .options(selectinload(WalkInServiceModel.service_items))
+            .order_by(WalkInServiceModel.started_at.desc())
+            .limit(limit)
+            .offset(skip)
+        )
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        return [self._to_domain(model) for model in models]
+
+    async def count(
+        self,
+        status: Optional[WalkInStatus] = None,
+        staff_id: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> int:
+        """Count walk-in services with filters."""
+        conditions = [WalkInServiceModel.deleted_at.is_(None)]
+
+        if status:
+            conditions.append(WalkInServiceModel.status == status.value)
+
+        if staff_id:
+            conditions.append(WalkInServiceModel.created_by_id == staff_id)
+
+        if start_date:
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+            conditions.append(WalkInServiceModel.started_at >= start_datetime)
+
+        if end_date:
+            end_datetime = datetime.combine(end_date, datetime.max.time())
+            conditions.append(WalkInServiceModel.started_at <= end_datetime)
+
+        stmt = select(func.count()).select_from(WalkInServiceModel).where(and_(*conditions))
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def get_daily_services(self, target_date: date) -> List[WalkInService]:
+        """Get all services for a specific date."""
+        start_datetime = datetime.combine(target_date, datetime.min.time())
+        end_datetime = datetime.combine(target_date, datetime.max.time())
 
         stmt = (
             select(WalkInServiceModel)
@@ -148,6 +218,10 @@ class WalkInRepository(IWalkInRepository):
         result = await self._session.execute(stmt)
         models = result.scalars().all()
         return [self._to_domain(model) for model in models]
+
+    async def list_by_date(self, service_date: date) -> List[WalkInService]:
+        """List walk-ins by date (alias for get_daily_services)."""
+        return await self.get_daily_services(service_date)
 
     async def list_with_filters(
         self,
@@ -283,9 +357,9 @@ class WalkInRepository(IWalkInRepository):
             discount_reason=walkin.discount_reason,
             final_amount=walkin.final_amount,
             paid_amount=walkin.paid_amount,
-            started_at=walkin.started_at,
-            completed_at=walkin.completed_at,
-            cancelled_at=walkin.cancelled_at,
+            started_at=walkin.started_at.replace(tzinfo=None) if walkin.started_at else None,
+            completed_at=walkin.completed_at.replace(tzinfo=None) if walkin.completed_at else None,
+            cancelled_at=walkin.cancelled_at.replace(tzinfo=None) if walkin.cancelled_at else None,
             created_by_id=walkin.created_by_id,
             completed_by_id=walkin.completed_by_id,
             cancelled_by_id=walkin.cancelled_by_id,
@@ -294,8 +368,8 @@ class WalkInRepository(IWalkInRepository):
             payment_details=json.loads(walkin.payment_details)
             if walkin.payment_details
             else None,
-            created_at=walkin.created_at if walkin.created_at else datetime.now(timezone.utc),
-            updated_at=walkin.updated_at if walkin.updated_at else datetime.now(timezone.utc),
+            created_at=walkin.created_at.replace(tzinfo=None) if walkin.created_at else datetime.now(timezone.utc).replace(tzinfo=None),
+            updated_at=walkin.updated_at.replace(tzinfo=None) if walkin.updated_at else datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
         # Add service items

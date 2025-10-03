@@ -1,0 +1,222 @@
+{
+	"info": {
+		"_postman_id": "master-config",
+		"name": "00 - Master Configuration & Setup",
+		"description": "Master configuration: Admin authentication, endpoint discovery, and global test data setup",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"API is healthy\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.status).to.equal('healthy');",
+							"    pm.expect(response.checks.database.status).to.equal('healthy');",
+							"    pm.expect(response.checks.redis.status).to.equal('healthy');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": ["{{base_url}}"],
+					"path": ["health"]
+				}
+			}
+		},
+		{
+			"name": "2. Login as Admin",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Admin login successful\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('access_token');",
+							"    pm.expect(response.user.role).to.equal('admin');",
+							"    pm.environment.set('admin_token', response.access_token);",
+							"    pm.environment.set('admin_user_id', response.user.user_id);",
+							"    pm.environment.set('admin_email', response.user.email);",
+							"    console.log('✓ Admin Token:', response.access_token);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [{"key": "Content-Type", "value": "application/json"}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/auth/login",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "auth", "login"]
+				}
+			}
+		},
+		{
+			"name": "3. Setup - List All Users",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Users listed\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    ",
+							"    const manager = response.users.find(u => u.role === 'manager');",
+							"    const washer = response.users.find(u => u.role === 'washer');",
+							"    const client = response.users.find(u => u.role === 'client');",
+							"    ",
+							"    if (manager) {",
+							"        pm.environment.set('manager_user_id', manager.id);",
+							"        pm.environment.set('manager_email', manager.email);",
+							"        console.log('✓ Manager:', manager.email);",
+							"    }",
+							"    if (washer) {",
+							"        pm.environment.set('washer_user_id', washer.id);",
+							"        pm.environment.set('washer_email', washer.email);",
+							"        console.log('✓ Washer:', washer.email);",
+							"    }",
+							"    if (client) {",
+							"        pm.environment.set('client_user_id', client.id);",
+							"        pm.environment.set('client_email', client.email);",
+							"        console.log('✓ Client:', client.email);",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/auth/users?limit=100",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "auth", "users"],
+					"query": [{"key": "limit", "value": "100"}]
+				}
+			}
+		},
+		{
+			"name": "4. Setup - List All Categories",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Categories retrieved\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.categories).to.be.an('array');",
+							"    if (response.categories.length > 0) {",
+							"        pm.environment.set('category_id', response.categories[0].id);",
+							"        pm.environment.set('category_name', response.categories[0].name);",
+							"        console.log('✓ Category ID:', response.categories[0].id);",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/services/categories",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "services", "categories"]
+				}
+			}
+		},
+		{
+			"name": "5. Setup - List All Services",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Services retrieved\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    if (response.services && response.services.length > 0) {",
+							"        const basicWash = response.services.find(s => s.name.toLowerCase().includes('basic'));",
+							"        const premium = response.services.find(s => s.name.toLowerCase().includes('premium') || s.name.toLowerCase().includes('wax'));",
+							"        ",
+							"        if (basicWash) {",
+							"            pm.environment.set('service_basic_wash_id', basicWash.id);",
+							"            pm.environment.set('service_basic_wash_price', basicWash.price);",
+							"            console.log('✓ Basic Wash:', basicWash.id, basicWash.price);",
+							"        }",
+							"        if (premium) {",
+							"            pm.environment.set('service_premium_id', premium.id);",
+							"            pm.environment.set('service_premium_price', premium.price);",
+							"            console.log('✓ Premium Service:', premium.id, premium.price);",
+							"        }",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/services?limit=50",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "services"],
+					"query": [{"key": "limit", "value": "50"}]
+				}
+			}
+		},
+		{
+			"name": "6. Endpoint Discovery - List Routes",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Routes discovered\", function() {",
+							"    pm.response.to.be.ok;",
+							"    console.log('✓ API Routes Endpoint Available');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", ""]
+				}
+			}
+		}
+	]
+}

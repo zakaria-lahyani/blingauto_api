@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import get_db_session
+from app.core.db import get_db
 from app.features.walkins.adapters.repositories import WalkInRepository
 from app.features.walkins.use_cases.create_walkin import CreateWalkInUseCase
 from app.features.walkins.use_cases.add_service import AddServiceUseCase
@@ -25,7 +25,7 @@ from app.features.walkins.use_cases.get_daily_report import GetDailyReportUseCas
 
 
 def get_walkin_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)]
+    session: Annotated[AsyncSession, Depends(get_db)]
 ) -> WalkInRepository:
     """Get walk-in repository."""
     return WalkInRepository(session)

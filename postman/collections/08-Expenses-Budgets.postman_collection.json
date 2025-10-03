@@ -1,0 +1,868 @@
+{
+	"info": {
+		"_postman_id": "expenses-budgets",
+		"name": "08 - Expenses & Budgets Complete Testing",
+		"description": "Comprehensive expense tracking, approval workflow, and budget management testing",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Expense Management",
+			"item": [
+				{
+					"name": "Create Expense - Utilities",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"pm.environment.set('expense_date', today.toISOString().split('T')[0]);",
+									"const nextWeek = new Date(today);",
+									"nextWeek.setDate(today.getDate() + 7);",
+									"pm.environment.set('expense_due_date', nextWeek.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response).to.have.property('expense_number');",
+									"    pm.expect(response.expense_number).to.match(/^EXP-\\d{8}-\\d{3}$/);",
+									"    pm.expect(response.category).to.equal('utilities');",
+									"    pm.expect(response.status).to.equal('pending');",
+									"    pm.expect(response.amount).to.equal('250.00');",
+									"    pm.environment.set('test_expense_id', response.id);",
+									"    pm.environment.set('expense_number', response.expense_number);",
+									"    console.log('✓ Expense created:', response.expense_number);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"utilities\",\n  \"amount\": 250.00,\n  \"description\": \"Monthly water bill\",\n  \"payment_method\": \"bank_transfer\",\n  \"expense_date\": \"{{expense_date}}\",\n  \"due_date\": \"{{expense_due_date}}\",\n  \"vendor_name\": \"City Water Department\",\n  \"notes\": \"Regular monthly expense\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"]
+						}
+					}
+				},
+				{
+					"name": "Get Expense by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.id).to.equal(pm.environment.get('test_expense_id'));",
+									"    pm.expect(response.vendor_name).to.equal('City Water Department');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{test_expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{test_expense_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Expense Details",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.amount).to.equal('275.50');",
+									"    pm.expect(response.vendor_name).to.equal('City Water & Utilities');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 275.50,\n  \"description\": \"Monthly water bill - corrected amount\",\n  \"vendor_name\": \"City Water & Utilities\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{test_expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{test_expense_id}}"]
+						}
+					}
+				},
+				{
+					"name": "List Expenses - All",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expenses listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses?limit=50",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"],
+							"query": [{"key": "limit", "value": "50"}]
+						}
+					}
+				},
+				{
+					"name": "Filter Expenses - By Category",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expenses filtered by category (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    response.items.forEach(item => {",
+									"        pm.expect(item.category).to.equal('utilities');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses?category=utilities",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"],
+							"query": [{"key": "category", "value": "utilities"}]
+						}
+					}
+				},
+				{
+					"name": "Filter Expenses - By Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expenses filtered by status (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    response.items.forEach(item => {",
+									"        pm.expect(item.status).to.equal('pending');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses?status=pending",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"],
+							"query": [{"key": "status", "value": "pending"}]
+						}
+					}
+				},
+				{
+					"name": "Filter Expenses - Date Range",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const monthAgo = new Date(today);",
+									"monthAgo.setDate(today.getDate() - 30);",
+									"pm.environment.set('expense_filter_start', monthAgo.toISOString().split('T')[0]);",
+									"pm.environment.set('expense_filter_end', today.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expenses filtered by date (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses?start_date={{expense_filter_start}}&end_date={{expense_filter_end}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"],
+							"query": [
+								{"key": "start_date", "value": "{{expense_filter_start}}"},
+								{"key": "end_date", "value": "{{expense_filter_end}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Expense Approval Workflow",
+			"item": [
+				{
+					"name": "Approve Expense - Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense approved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('approved');",
+									"    pm.expect(response).to.have.property('approved_by_id');",
+									"    pm.expect(response.approval_notes).to.equal('Approved for payment');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"approval_notes\": \"Approved for payment\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{test_expense_id}}/approve",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{test_expense_id}}", "approve"]
+						}
+					}
+				},
+				{
+					"name": "Mark Expense as Paid",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set('paid_date', new Date().toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense marked as paid (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('paid');",
+									"    pm.expect(response).to.have.property('paid_date');",
+									"    pm.expect(response).to.have.property('paid_by_id');",
+									"    pm.expect(response.payment_method).to.equal('bank_transfer');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paid_date\": \"{{paid_date}}\",\n  \"payment_method\": \"bank_transfer\",\n  \"notes\": \"Payment processed via online banking\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{test_expense_id}}/mark-paid",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{test_expense_id}}", "mark-paid"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Create Expense for Rejection",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Rejection test expense created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    pm.environment.set('reject_expense_id', pm.response.json().id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"supplies\",\n  \"amount\": 500.00,\n  \"description\": \"Unauthorized purchase\",\n  \"payment_method\": \"cash\",\n  \"expense_date\": \"{{expense_date}}\",\n  \"vendor_name\": \"Test Vendor\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"]
+						}
+					}
+				},
+				{
+					"name": "Reject Expense - Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense rejected (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('rejected');",
+									"    pm.expect(response.rejection_reason).to.equal('Not pre-approved');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejection_reason\": \"Not pre-approved\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{reject_expense_id}}/reject",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{reject_expense_id}}", "reject"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Create Expense for Cancellation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cancellation test expense created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    pm.environment.set('cancel_expense_id', pm.response.json().id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"maintenance\",\n  \"amount\": 150.00,\n  \"description\": \"Equipment repair\",\n  \"payment_method\": \"credit_card\",\n  \"expense_date\": \"{{expense_date}}\",\n  \"vendor_name\": \"Fix-It Shop\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Expense",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Expense cancelled (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('cancelled');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{cancel_expense_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{cancel_expense_id}}", "cancel"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Budget Management",
+			"item": [
+				{
+					"name": "Create Budget - Utilities Category",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);",
+									"pm.environment.set('budget_month', firstDayOfMonth.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Budget created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.category).to.equal('utilities');",
+									"    pm.expect(response.budgeted_amount).to.equal('1000.00');",
+									"    pm.expect(response).to.have.property('spent_amount');",
+									"    pm.expect(response).to.have.property('remaining_amount');",
+									"    pm.expect(response).to.have.property('utilization_percent');",
+									"    pm.expect(response).to.have.property('is_over_budget');",
+									"    pm.environment.set('test_budget_id', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"utilities\",\n  \"month\": \"{{budget_month}}\",\n  \"budgeted_amount\": 1000.00,\n  \"alert_threshold_percent\": 80,\n  \"notes\": \"Monthly utilities budget\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets"]
+						}
+					}
+				},
+				{
+					"name": "Get Budget by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Budget retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.id).to.equal(pm.environment.get('test_budget_id'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets/{{test_budget_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets", "{{test_budget_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Budget Amount",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Budget updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.budgeted_amount).to.equal('1200.00');",
+									"    pm.expect(response.alert_threshold_percent).to.equal(75);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"budgeted_amount\": 1200.00,\n  \"alert_threshold_percent\": 75,\n  \"notes\": \"Increased budget for this month\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets/{{test_budget_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets", "{{test_budget_id}}"]
+						}
+					}
+				},
+				{
+					"name": "List All Budgets",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Budgets listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets"]
+						}
+					}
+				},
+				{
+					"name": "Filter Budgets - By Month",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Budgets filtered by month (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets?month={{budget_month}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets"],
+							"query": [{"key": "month", "value": "{{budget_month}}"}]
+						}
+					}
+				},
+				{
+					"name": "Delete Budget - Admin Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Budget deleted (204)\", function() {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets/{{test_budget_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets", "{{test_budget_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Reports",
+			"item": [
+				{
+					"name": "Get Monthly Summary",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Monthly summary retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('month');",
+									"    pm.expect(response).to.have.property('summaries');",
+									"    pm.expect(response).to.have.property('total_expenses');",
+									"    pm.expect(response).to.have.property('total_amount');",
+									"    pm.expect(response).to.have.property('total_approved');",
+									"    pm.expect(response).to.have.property('total_pending');",
+									"    pm.expect(response).to.have.property('total_paid');",
+									"    pm.expect(response).to.have.property('total_budgeted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/reports/monthly-summary?month={{budget_month}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "reports", "monthly-summary"],
+							"query": [{"key": "month", "value": "{{budget_month}}"}]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "RBAC & Edge Cases",
+			"item": [
+				{
+					"name": "Create Expense - Washer Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot create expenses (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"supplies\",\n  \"amount\": 50.00,\n  \"description\": \"Unauthorized\",\n  \"payment_method\": \"cash\",\n  \"expense_date\": \"{{expense_date}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"]
+						}
+					}
+				},
+				{
+					"name": "Delete Budget - Manager Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot delete budget (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/budgets/{{test_budget_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "budgets", "{{test_budget_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Expense - Negative Amount (✗ Error)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Negative amount rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"category\": \"utilities\",\n  \"amount\": -100.00,\n  \"description\": \"Invalid negative expense\",\n  \"payment_method\": \"cash\",\n  \"expense_date\": \"{{expense_date}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses"]
+						}
+					}
+				},
+				{
+					"name": "Update Paid Expense (✗ Invalid State)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot update paid expense (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 999.99\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/{{test_expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "{{test_expense_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Nonexistent Expense (✗ 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Nonexistent expense returns 404\", function() {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/expenses/nonexistent-id-12345",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "expenses", "nonexistent-id-12345"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

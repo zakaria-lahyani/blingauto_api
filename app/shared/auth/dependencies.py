@@ -9,7 +9,8 @@ from typing import Annotated, Callable
 
 from .contracts import AuthenticatedUser
 
-security = HTTPBearer()
+# Use auto_error=False to handle missing credentials manually with 401
+security = HTTPBearer(auto_error=False)
 
 
 # This will be injected by the composition root (interfaces layer)
@@ -33,42 +34,38 @@ async def get_current_user(
     Get current authenticated user from JWT token.
     This is the main dependency for authentication across features.
     """
-    # Import here to avoid circular dependencies
-    from app.features.auth.api.dependencies import get_auth_adapter
-    from app.core.db import get_db
-
-    # Get database session
-    db = None
-    try:
-        async for session in get_db():
-            db = session
-            break
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database connection failed: {str(e)}"
-        )
-
-    # Get auth adapter with the db session
-    from app.features.auth.api.dependencies import create_auth_adapter
-    auth_adapter = create_auth_adapter(db)
-
-    try:
-        user = await auth_adapter.authenticate_from_credentials(credentials)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired token"
-            )
-        return user
-    except HTTPException:
-        # Re-raise HTTP exceptions from adapter
-        raise
-    except Exception as e:
+    # Check if credentials are provided
+    if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e)
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Import here to avoid circular dependencies
+    from app.core.db import AsyncSessionLocal
+    from app.features.auth.api.dependencies import create_auth_adapter
+
+    # Get database session properly using async context manager
+    async with AsyncSessionLocal() as db:
+        auth_adapter = create_auth_adapter(db)
+
+        try:
+            user = await auth_adapter.authenticate_from_credentials(credentials)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired token"
+                )
+            return user
+        except HTTPException:
+            # Re-raise HTTP exceptions from adapter
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=str(e)
+            )
 
 
 async def get_current_user_id(

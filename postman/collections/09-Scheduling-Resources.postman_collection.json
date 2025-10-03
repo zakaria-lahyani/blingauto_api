@@ -1,0 +1,559 @@
+{
+	"info": {
+		"_postman_id": "scheduling-resources",
+		"name": "09 - Scheduling & Resources Complete Testing",
+		"description": "Comprehensive scheduling, availability checking, and resource management testing",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Availability Checking",
+			"item": [
+				{
+					"name": "Check Availability - Valid Request",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(10, 0, 0, 0);",
+									"pm.environment.set('requested_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Availability checked (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('is_available');",
+									"    pm.expect(response).to.have.property('requested_time');",
+									"    pm.expect(response).to.have.property('available_resources');",
+									"    if (response.is_available) {",
+									"        pm.expect(response.available_resources).to.be.an('array');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{requested_time}}\",\n  \"duration_minutes\": 60,\n  \"vehicle_size\": \"standard\",\n  \"service_type\": \"in_facility\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				},
+				{
+					"name": "Check Availability - Mobile Service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Mobile availability checked (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('is_available');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{requested_time}}\",\n  \"duration_minutes\": 90,\n  \"vehicle_size\": \"large\",\n  \"service_type\": \"mobile\",\n  \"customer_location\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				},
+				{
+					"name": "Check Availability - Past Time (✗ Error)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const yesterday = new Date();",
+									"yesterday.setDate(yesterday.getDate() - 1);",
+									"pm.environment.set('past_time', yesterday.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Past time rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{past_time}}\",\n  \"duration_minutes\": 60,\n  \"vehicle_size\": \"standard\",\n  \"service_type\": \"in_facility\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				},
+				{
+					"name": "Check Availability - Outside Business Hours",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(23, 0, 0, 0);",
+									"pm.environment.set('after_hours_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Outside business hours handled (200/422)\", function() {",
+									"    pm.response.to.be.oneOf([200, 422]);",
+									"    if (pm.response.code === 200) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.is_available).to.be.false;",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{after_hours_time}}\",\n  \"duration_minutes\": 60,\n  \"vehicle_size\": \"standard\",\n  \"service_type\": \"in_facility\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Available Slots",
+			"item": [
+				{
+					"name": "Get Available Slots - Date Range",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const nextWeek = new Date(today);",
+									"nextWeek.setDate(today.getDate() + 7);",
+									"pm.environment.set('slots_start_date', today.toISOString().split('T')[0]);",
+									"pm.environment.set('slots_end_date', nextWeek.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Available slots retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('slots');",
+									"    pm.expect(response).to.have.property('total_count');",
+									"    pm.expect(response).to.have.property('search_criteria');",
+									"    pm.expect(response.slots).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"start_date\": \"{{slots_start_date}}\",\n  \"end_date\": \"{{slots_end_date}}\",\n  \"service_type\": \"in_facility\",\n  \"vehicle_size\": \"standard\",\n  \"duration_minutes\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/available-slots",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "available-slots"]
+						}
+					}
+				},
+				{
+					"name": "Get Available Slots - Large Vehicle",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Large vehicle slots retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"start_date\": \"{{slots_start_date}}\",\n  \"end_date\": \"{{slots_end_date}}\",\n  \"service_type\": \"in_facility\",\n  \"vehicle_size\": \"large\",\n  \"duration_minutes\": 90\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/available-slots",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "available-slots"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Resource Management",
+			"item": [
+				{
+					"name": "List All Resources",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Resources listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('wash_bays');",
+									"    pm.expect(response).to.have.property('mobile_teams');",
+									"    pm.expect(response).to.have.property('total_wash_bays');",
+									"    pm.expect(response).to.have.property('total_mobile_teams');",
+									"    pm.expect(response.wash_bays).to.be.an('array');",
+									"    pm.expect(response.mobile_teams).to.be.an('array');",
+									"    if (response.wash_bays.length > 0) {",
+									"        pm.environment.set('test_resource_id', response.wash_bays[0].id);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/resources",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "resources"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Slot Booking",
+			"item": [
+				{
+					"name": "Book Time Slot",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 2);",
+									"tomorrow.setHours(14, 0, 0, 0);",
+									"pm.environment.set('booking_slot_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Time slot booked (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('success');",
+									"    pm.expect(response).to.have.property('slot_id');",
+									"    pm.expect(response).to.have.property('confirmed_time');",
+									"    pm.expect(response).to.have.property('resource_id');",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.environment.set('booked_slot_id', response.slot_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"booking_id\": \"{{test_booking_id}}\",\n  \"resource_id\": \"{{test_resource_id}}\",\n  \"start_time\": \"{{booking_slot_time}}\",\n  \"duration_minutes\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/book-slot",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "book-slot"]
+						}
+					}
+				},
+				{
+					"name": "Book Slot - Duplicate Time (✗ Conflict)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Duplicate booking rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"booking_id\": \"another-booking-id\",\n  \"resource_id\": \"{{test_resource_id}}\",\n  \"start_time\": \"{{booking_slot_time}}\",\n  \"duration_minutes\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/book-slot",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "book-slot"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Time Slot",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Slot cancelled (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/book-slot/{{booked_slot_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "book-slot", "{{booked_slot_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Nonexistent Slot (✗ Error)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Nonexistent slot returns error (400/404)\", function() {",
+									"    pm.response.to.be.oneOf([400, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/book-slot/nonexistent-slot-id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "book-slot", "nonexistent-slot-id"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Edge Cases & Validation",
+			"item": [
+				{
+					"name": "Invalid Duration - Zero Minutes (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Zero duration rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{requested_time}}\",\n  \"duration_minutes\": 0,\n  \"vehicle_size\": \"standard\",\n  \"service_type\": \"in_facility\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				},
+				{
+					"name": "Invalid Vehicle Size (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid vehicle size rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{requested_time}}\",\n  \"duration_minutes\": 60,\n  \"vehicle_size\": \"super_mega_large\",\n  \"service_type\": \"in_facility\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				},
+				{
+					"name": "Mobile Service - No Location (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Missing location for mobile rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requested_time\": \"{{requested_time}}\",\n  \"duration_minutes\": 60,\n  \"vehicle_size\": \"standard\",\n  \"service_type\": \"mobile\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scheduling/check-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scheduling", "check-availability"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

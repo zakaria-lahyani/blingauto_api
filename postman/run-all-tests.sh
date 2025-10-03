@@ -1,24 +1,9 @@
 #!/bin/bash
 
-###############################################################################
-# BlingAuto API - Complete Test Suite Runner
-#
-# This script runs all Postman collections in the correct order with
-# comprehensive reporting and error handling.
-#
-# Usage:
-#   ./run-all-tests.sh [environment]
-#
-# Arguments:
-#   environment - Optional. Either 'local' (default) or 'production'
-#
-# Examples:
-#   ./run-all-tests.sh              # Run against local environment
-#   ./run-all-tests.sh local        # Run against local environment
-#   ./run-all-tests.sh production   # Run against production environment
-###############################################################################
+# BlingAuto API - Master Test Runner
+# Runs all Postman collections with Newman and generates HTML reports
 
-set -e  # Exit on error
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -28,304 +13,195 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COLLECTIONS_DIR="${SCRIPT_DIR}/collections"
-ENVIRONMENTS_DIR="${SCRIPT_DIR}/environments"
-RESULTS_DIR="${SCRIPT_DIR}/test-results"
-
-# Default environment
-ENVIRONMENT="${1:-local}"
-
-# Set environment file based on argument
-if [ "$ENVIRONMENT" = "production" ]; then
-    ENV_FILE="${ENVIRONMENTS_DIR}/BlingAuto-Production.postman_environment.json"
-    echo -e "${YELLOW}⚠️  WARNING: Running tests against PRODUCTION environment${NC}"
-    read -p "Are you sure? (y/N): " confirm
-    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-        echo "Aborting."
-        exit 0
-    fi
-else
-    ENV_FILE="${ENVIRONMENTS_DIR}/BlingAuto-Local.postman_environment.json"
-fi
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+COLLECTIONS_DIR="$SCRIPT_DIR/collections"
+ENV_FILE="$SCRIPT_DIR/environments/BlingAuto-Local.postman_environment.json"
+REPORTS_DIR="$SCRIPT_DIR/reports"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # Check if Newman is installed
 if ! command -v newman &> /dev/null; then
-    echo -e "${RED}❌ Newman is not installed${NC}"
-    echo "Install it with: npm install -g newman newman-reporter-htmlextra"
+    echo -e "${RED}Error: Newman is not installed${NC}"
+    echo "Install with: npm install -g newman newman-reporter-htmlextra"
     exit 1
 fi
 
-# Create results directory
-mkdir -p "$RESULTS_DIR"
+# Create reports directory
+mkdir -p "$REPORTS_DIR"
 
-# Timestamp for this test run
-TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-RUN_DIR="${RESULTS_DIR}/run-${TIMESTAMP}"
-mkdir -p "$RUN_DIR"
+echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║   BlingAuto API - Test Suite Runner       ║${NC}"
+echo -e "${BLUE}║   Logical Workflow Order (Data Flow)       ║${NC}"
+echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
+echo ""
 
-echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║         BlingAuto API - Complete Test Suite Runner           ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+# Check if API is running
+echo -e "${YELLOW}→ Checking API health...${NC}"
+if ! curl -s -f http://localhost:8000/health > /dev/null; then
+    echo -e "${RED}✗ API is not running on http://localhost:8000${NC}"
+    echo "Start with: docker-compose up -d"
+    exit 1
+fi
+echo -e "${GREEN}✓ API is healthy${NC}"
 echo ""
-echo -e "${BLUE}Environment:${NC} $ENVIRONMENT"
-echo -e "${BLUE}Results Directory:${NC} $RUN_DIR"
-echo ""
+
+# Counter for test results
+TOTAL_COLLECTIONS=0
+PASSED_COLLECTIONS=0
+FAILED_COLLECTIONS=0
 
 # Function to run a collection
 run_collection() {
-    local collection_file="$1"
-    local collection_name="$2"
-    local collection_number="$3"
-    local total_collections="$4"
+    local collection_file=$1
+    local collection_name=$(basename "$collection_file" .postman_collection.json)
+    local report_file="$REPORTS_DIR/${collection_name}_${TIMESTAMP}.html"
 
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}[$collection_number/$total_collections] Running: $collection_name${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
+    TOTAL_COLLECTIONS=$((TOTAL_COLLECTIONS + 1))
 
-    # Generate report filename
-    local report_file="${RUN_DIR}/${collection_number}-${collection_name// /-}.html"
-    local json_report="${RUN_DIR}/${collection_number}-${collection_name// /-}.json"
+    echo -e "${BLUE}══════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}Running: ${collection_name}${NC}"
+    echo -e "${BLUE}══════════════════════════════════════════════${NC}"
 
-    # Run Newman with HTML reporter
     if newman run "$collection_file" \
         -e "$ENV_FILE" \
-        --reporters cli,htmlextra,json \
+        --reporters cli,htmlextra \
         --reporter-htmlextra-export "$report_file" \
-        --reporter-htmlextra-darkTheme \
         --reporter-htmlextra-title "BlingAuto API Tests - $collection_name" \
-        --reporter-htmlextra-showEnvironmentData \
-        --reporter-json-export "$json_report" \
-        --timeout-request 10000 \
-        --bail; then
+        --reporter-htmlextra-logs \
+        --color on; then
 
-        echo ""
-        echo -e "${GREEN}✅ $collection_name: PASSED${NC}"
-        echo -e "${GREEN}   Report: $report_file${NC}"
-        echo ""
+        echo -e "${GREEN}✓ $collection_name - PASSED${NC}"
+        PASSED_COLLECTIONS=$((PASSED_COLLECTIONS + 1))
         return 0
     else
-        echo ""
-        echo -e "${RED}❌ $collection_name: FAILED${NC}"
-        echo -e "${RED}   Report: $report_file${NC}"
-        echo ""
+        echo -e "${RED}✗ $collection_name - FAILED${NC}"
+        FAILED_COLLECTIONS=$((FAILED_COLLECTIONS + 1))
         return 1
     fi
 }
 
-# Track test results
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Run all collections in order
+echo -e "${YELLOW}→ Starting test execution...${NC}"
+echo ""
 
-# Collections to run (in order)
-declare -a COLLECTIONS=(
-    "01-Health-and-Setup.postman_collection.json|Health & Setup Verification"
-    "02-Authentication-Flow.postman_collection.json|Authentication & User Management"
-    "03-Complete-Booking-Lifecycle.postman_collection.json|Complete Booking Lifecycle"
+# List of collections to run (in logical workflow order)
+collections=(
+    # Phase 1: Configuration & Authentication (Foundation)
+    "00-Master-Configuration.postman_collection.json"
+    "02-Complete-Authentication-Profile.postman_collection.json"
+
+    # Phase 2: Core Data Setup (Prerequisites)
+    "03-Services-Categories.postman_collection.json"
+    "11-Facilities-Management.postman_collection.json"
+    "04-Staff-Management.postman_collection.json"
+
+    # Phase 3: Operations (Business Workflows)
+    "01-Walkins-Complete-Flow.postman_collection.json"
+    "06-Bookings-Management.postman_collection.json"
+    "09-Scheduling-Resources.postman_collection.json"
+
+    # Phase 4: Supporting Systems (Financial & Inventory)
+    "08-Expenses-Budgets.postman_collection.json"
+    "05-Inventory-Management.postman_collection.json"
+
+    # Phase 5: Analytics & Validation (Verification)
+    "07-Analytics-Reports.postman_collection.json"
+    "10-Data-Validation-Security.postman_collection.json"
 )
 
-TOTAL_COLLECTIONS=${#COLLECTIONS[@]}
+for collection in "${collections[@]}"; do
+    collection_path="$COLLECTIONS_DIR/$collection"
 
-# Run each collection
-for i in "${!COLLECTIONS[@]}"; do
-    IFS='|' read -r collection_file collection_name <<< "${COLLECTIONS[$i]}"
-    collection_number=$((i + 1))
-
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-
-    if run_collection "${COLLECTIONS_DIR}/${collection_file}" "$collection_name" "$collection_number" "$TOTAL_COLLECTIONS"; then
-        PASSED_TESTS=$((PASSED_TESTS + 1))
+    if [ -f "$collection_path" ]; then
+        run_collection "$collection_path"
+        echo ""
     else
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-        # Optionally, continue on failure or break
-        # break  # Uncomment to stop on first failure
+        echo -e "${YELLOW}⚠ Skipping: $collection (file not found)${NC}"
+        echo ""
     fi
-
-    # Small delay between collections
-    sleep 2
 done
 
-# Generate summary
+# Summary
+echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║          Test Execution Summary            ║${NC}"
+echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
 echo ""
-echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                        Test Summary                           ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+echo -e "Total Collections:  ${BLUE}$TOTAL_COLLECTIONS${NC}"
+echo -e "Passed:             ${GREEN}$PASSED_COLLECTIONS${NC}"
+echo -e "Failed:             ${RED}$FAILED_COLLECTIONS${NC}"
 echo ""
-echo -e "Total Collections: $TOTAL_TESTS"
-echo -e "${GREEN}Passed: $PASSED_TESTS${NC}"
-if [ $FAILED_TESTS -gt 0 ]; then
-    echo -e "${RED}Failed: $FAILED_TESTS${NC}"
-else
-    echo -e "Failed: $FAILED_TESTS"
-fi
-echo ""
-echo -e "${BLUE}Results saved to:${NC} $RUN_DIR"
+echo -e "${YELLOW}Reports saved to: $REPORTS_DIR${NC}"
 echo ""
 
-# Create summary HTML index
-cat > "${RUN_DIR}/index.html" <<EOF
+# Open summary report if all passed
+if [ $FAILED_COLLECTIONS -eq 0 ]; then
+    echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║     ✓ All Tests Passed Successfully!      ║${NC}"
+    echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
+
+    # Generate summary HTML
+    SUMMARY_FILE="$REPORTS_DIR/test-summary_${TIMESTAMP}.html"
+    cat > "$SUMMARY_FILE" << EOF
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BlingAuto API Test Results - ${TIMESTAMP}</title>
+    <title>BlingAuto API Test Summary</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #4fc3f7;
-            border-bottom: 2px solid #4fc3f7;
-            padding-bottom: 10px;
-        }
-        .summary {
-            background-color: #252525;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-        .summary-item {
-            display: inline-block;
-            margin: 10px 20px;
-            font-size: 18px;
-        }
-        .passed {
-            color: #4caf50;
-            font-weight: bold;
-        }
-        .failed {
-            color: #f44336;
-            font-weight: bold;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: #252525;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        th, td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #3e3e3e;
-        }
-        th {
-            background-color: #2d2d2d;
-            color: #4fc3f7;
-            font-weight: bold;
-        }
-        tr:hover {
-            background-color: #2d2d2d;
-        }
-        a {
-            color: #4fc3f7;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .status-badge {
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .status-passed {
-            background-color: #4caf50;
-            color: white;
-        }
-        .status-failed {
-            background-color: #f44336;
-            color: white;
-        }
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .header { background: #4CAF50; color: white; padding: 20px; border-radius: 5px; }
+        .stats { display: flex; gap: 20px; margin: 20px 0; }
+        .stat-card { background: white; padding: 20px; border-radius: 5px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-value { font-size: 36px; font-weight: bold; color: #4CAF50; }
+        .reports { background: white; padding: 20px; border-radius: 5px; margin-top: 20px; }
+        .report-link { display: block; padding: 10px; margin: 5px 0; background: #2196F3; color: white; text-decoration: none; border-radius: 3px; }
+        .report-link:hover { background: #0b7dda; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🧪 BlingAuto API Test Results</h1>
+    <div class="header">
+        <h1>✓ BlingAuto API Test Suite</h1>
+        <p>All tests passed successfully - $(date)</p>
+    </div>
 
-        <div class="summary">
-            <h2>Test Run Summary</h2>
-            <div class="summary-item">
-                <strong>Environment:</strong> ${ENVIRONMENT}
-            </div>
-            <div class="summary-item">
-                <strong>Timestamp:</strong> ${TIMESTAMP}
-            </div>
-            <div class="summary-item">
-                <strong>Total Collections:</strong> ${TOTAL_TESTS}
-            </div>
-            <div class="summary-item passed">
-                <strong>Passed:</strong> ${PASSED_TESTS}
-            </div>
-            <div class="summary-item failed">
-                <strong>Failed:</strong> ${FAILED_TESTS}
-            </div>
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-value">$TOTAL_COLLECTIONS</div>
+            <div>Collections Run</div>
         </div>
+        <div class="stat-card">
+            <div class="stat-value">$PASSED_COLLECTIONS</div>
+            <div>Passed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color: #f44336;">$FAILED_COLLECTIONS</div>
+            <div>Failed</div>
+        </div>
+    </div>
 
-        <h2>Collection Reports</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Collection</th>
-                    <th>Report</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
+    <div class="reports">
+        <h2>Test Reports</h2>
 EOF
 
-# Add table rows for each collection
-for i in "${!COLLECTIONS[@]}"; do
-    IFS='|' read -r collection_file collection_name <<< "${COLLECTIONS[$i]}"
-    collection_number=$((i + 1))
-    report_file="${collection_number}-${collection_name// /-}.html"
+    for collection in "${collections[@]}"; do
+        collection_name=$(basename "$collection" .postman_collection.json)
+        report_file="${collection_name}_${TIMESTAMP}.html"
+        if [ -f "$REPORTS_DIR/$report_file" ]; then
+            echo "        <a href=\"$report_file\" class=\"report-link\">📊 $collection_name Report</a>" >> "$SUMMARY_FILE"
+        fi
+    done
 
-    # Determine status (simplified - would need actual test results)
-    status="PASSED"
-    status_class="status-passed"
-
-    cat >> "${RUN_DIR}/index.html" <<EOF
-                <tr>
-                    <td>${collection_number}</td>
-                    <td>${collection_name}</td>
-                    <td><a href="./${report_file}">View Report</a></td>
-                    <td><span class="status-badge ${status_class}">${status}</span></td>
-                </tr>
-EOF
-done
-
-cat >> "${RUN_DIR}/index.html" <<EOF
-            </tbody>
-        </table>
-
-        <div style="margin-top: 40px; text-align: center; color: #888;">
-            <p>Generated by BlingAuto API Test Suite</p>
-            <p>Powered by Newman & HTMLExtra Reporter</p>
-        </div>
+    cat >> "$SUMMARY_FILE" << EOF
     </div>
 </body>
 </html>
 EOF
 
-echo -e "${GREEN}📊 Test summary created: ${RUN_DIR}/index.html${NC}"
-echo ""
+    echo -e "${YELLOW}Summary report: file://$SUMMARY_FILE${NC}"
 
-# Exit with appropriate code
-if [ $FAILED_TESTS -gt 0 ]; then
-    echo -e "${RED}❌ Some tests failed. Please check the reports.${NC}"
-    exit 1
-else
-    echo -e "${GREEN}✅ All tests passed successfully!${NC}"
     exit 0
+else
+    echo -e "${RED}╔════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║     ✗ Some Tests Failed - Check Reports   ║${NC}"
+    echo -e "${RED}╔════════════════════════════════════════════╗${NC}"
+    exit 1
 fi

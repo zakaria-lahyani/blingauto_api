@@ -1,0 +1,680 @@
+{
+	"info": {
+		"_postman_id": "staff-management",
+		"name": "04 - Staff Management Complete Testing",
+		"description": "Comprehensive staff management testing - CRUD, Documents, Attendance, Schedules",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Staff CRUD",
+			"item": [
+				{
+					"name": "Create Staff - Admin Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response).to.have.property('employee_code');",
+									"    pm.expect(response.status).to.equal('active');",
+									"    pm.environment.set('test_staff_id', response.id);",
+									"    console.log('✓ Staff created:', response.employee_code);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{client_user_id}}\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"Staff\",\n  \"phone\": \"+1234567890\",\n  \"email\": \"teststaff@example.com\",\n  \"hire_date\": \"2024-01-01\",\n  \"employment_type\": \"full_time\",\n  \"hourly_rate\": 25.00,\n  \"skills\": [\"washing\", \"detailing\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff"]
+						}
+					}
+				},
+				{
+					"name": "Create Staff - Manager Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can create staff (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Manager\",\n  \"last_name\": \"Created\",\n  \"phone\": \"+9876543210\",\n  \"email\": \"managercreated@example.com\",\n  \"hire_date\": \"2024-01-15\",\n  \"employment_type\": \"part_time\",\n  \"hourly_rate\": 20.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff"]
+						}
+					}
+				},
+				{
+					"name": "Create Staff - Washer Forbidden",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot create staff (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Unauthorized\",\n  \"last_name\": \"Staff\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff"]
+						}
+					}
+				},
+				{
+					"name": "List Staff - Paginated",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"    pm.expect(response).to.have.property('skip');",
+									"    pm.expect(response).to.have.property('limit');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff?skip=0&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff"],
+							"query": [
+								{"key": "skip", "value": "0"},
+								{"key": "limit", "value": "20"}
+							]
+						}
+					}
+				},
+				{
+					"name": "List Staff - Filter by Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Filtered staff listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff?status=active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff"],
+							"query": [{"key": "status", "value": "active"}]
+						}
+					}
+				},
+				{
+					"name": "Get Staff by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.id).to.equal(pm.environment.get('test_staff_id'));",
+									"    pm.expect(response).to.have.property('full_name');",
+									"    pm.expect(response).to.have.property('employee_code');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Staff - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.hourly_rate).to.equal('30.00');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"hourly_rate\": 30.00,\n  \"skills\": [\"washing\", \"detailing\", \"waxing\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Deactivate Staff - Admin Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff deactivated (204)\", function() {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Document Management",
+			"item": [
+				{
+					"name": "Upload Staff Document - ID Card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Document uploaded (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.document_type).to.equal('id_card');",
+									"    pm.expect(response).to.have.property('file_url');",
+									"    pm.environment.set('test_document_id', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": ""},
+								{"key": "document_type", "value": "id_card", "type": "text"},
+								{"key": "document_name", "value": "National ID Card", "type": "text"},
+								{"key": "expires_at", "value": "2025-12-31", "type": "text"},
+								{"key": "notes", "value": "Government issued ID", "type": "text"}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/documents",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "documents"]
+						}
+					}
+				},
+				{
+					"name": "List Staff Documents",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Documents listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/documents",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "documents"]
+						}
+					}
+				},
+				{
+					"name": "Verify Document - Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Document verified (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.verified).to.be.true;",
+									"    pm.expect(response).to.have.property('verified_at');",
+									"    pm.expect(response).to.have.property('verified_by_user_id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/documents/{{test_document_id}}/verify",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "documents", "{{test_document_id}}", "verify"]
+						}
+					}
+				},
+				{
+					"name": "Delete Document - Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Document deleted (204)\", function() {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/documents/{{test_document_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "documents", "{{test_document_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Work Schedules",
+			"item": [
+				{
+					"name": "Create Work Schedule - Monday",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Schedule created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.day_of_week).to.equal(1);",
+									"    pm.expect(response.day_name).to.equal('Monday');",
+									"    pm.expect(response).to.have.property('shift_duration_hours');",
+									"    pm.environment.set('test_schedule_id', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"day_of_week\": 1,\n  \"shift_start\": \"09:00:00\",\n  \"shift_end\": \"17:00:00\",\n  \"break_duration_minutes\": 60,\n  \"effective_from\": \"2024-01-01\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/schedule",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "schedule"]
+						}
+					}
+				},
+				{
+					"name": "Get Staff Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Schedule retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/schedule",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "schedule"]
+						}
+					}
+				},
+				{
+					"name": "Update Work Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Schedule updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.shift_end).to.equal('18:00:00');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"shift_end\": \"18:00:00\",\n  \"break_duration_minutes\": 90\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{test_staff_id}}/schedule/{{test_schedule_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{test_staff_id}}", "schedule", "{{test_schedule_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Attendance Management",
+			"item": [
+				{
+					"name": "Check-in Staff",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff checked in (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('attendance_id');",
+									"    pm.expect(response).to.have.property('check_in');",
+									"    pm.expect(response.status).to.equal('present');",
+									"    pm.environment.set('attendance_id', response.attendance_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{washer_user_id}}/attendance/check-in",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{washer_user_id}}", "attendance", "check-in"]
+						}
+					}
+				},
+				{
+					"name": "Check-in Duplicate - Error",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Duplicate check-in rejected (409)\", function() {",
+									"    pm.response.to.have.status(409);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{washer_user_id}}/attendance/check-in",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{washer_user_id}}", "attendance", "check-in"]
+						}
+					}
+				},
+				{
+					"name": "Check-out Staff",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff checked out (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('check_out');",
+									"    pm.expect(response).to.have.property('hours_worked');",
+									"    pm.expect(parseFloat(response.hours_worked)).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{washer_user_id}}/attendance/check-out",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{washer_user_id}}", "attendance", "check-out"]
+						}
+					}
+				},
+				{
+					"name": "Record Manual Attendance",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manual attendance recorded (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('present');",
+									"    pm.expect(response.hours_worked).to.equal('8.00');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"staff_id\": \"{{test_staff_id}}\",\n  \"date\": \"2024-01-15\",\n  \"status\": \"present\",\n  \"check_in\": \"09:00:00\",\n  \"check_out\": \"17:00:00\",\n  \"hours_worked\": 8.00,\n  \"notes\": \"Manually recorded by manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/attendance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "attendance"]
+						}
+					}
+				},
+				{
+					"name": "Get Attendance Report",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Attendance report retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('items');",
+									"    pm.expect(response).to.have.property('total_days');",
+									"    pm.expect(response).to.have.property('attendance_rate');",
+									"    pm.expect(response).to.have.property('total_hours');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{washer_user_id}}/attendance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{washer_user_id}}", "attendance"]
+						}
+					}
+				},
+				{
+					"name": "Get Attendance Report - Date Range",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Filtered attendance report (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/staff/{{washer_user_id}}/attendance?start_date=2024-01-01&end_date=2024-01-31",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "staff", "{{washer_user_id}}", "attendance"],
+							"query": [
+								{"key": "start_date", "value": "2024-01-01"},
+								{"key": "end_date", "value": "2024-01-31"}
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}

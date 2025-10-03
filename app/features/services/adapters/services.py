@@ -22,52 +22,50 @@ class RedisCacheService(ICacheService):
     async def get_category(self, category_id: str) -> Optional[Category]:
         """Get cached category."""
         try:
-            data = await self._redis.get(f"category:{category_id}")
+            data = self._redis.get(f"category:{category_id}")
             if data:
                 # Deserialize category data
                 return None  # Placeholder
             return None
         except Exception:
             return None
-    
+
     async def set_category(self, category: Category, ttl: int = 3600) -> bool:
         """Cache category data."""
         try:
-            data = json.dumps({
+            data = {
                 "id": category.id,
                 "name": category.name,
                 "description": category.description,
                 "status": category.status.value,
                 "display_order": category.display_order,
-            })
-            await self._redis.setex(f"category:{category.id}", ttl, data)
-            return True
+            }
+            return self._redis.set(f"category:{category.id}", data, ttl=ttl)
         except Exception:
             return False
-    
+
     async def delete_category(self, category_id: str) -> bool:
         """Remove category from cache."""
         try:
-            await self._redis.delete(f"category:{category_id}")
-            return True
+            return self._redis.delete(f"category:{category_id}")
         except Exception:
             return False
     
     async def get_service(self, service_id: str) -> Optional[Service]:
         """Get cached service."""
         try:
-            data = await self._redis.get(f"service:{service_id}")
+            data = self._redis.get(f"service:{service_id}")
             if data:
                 # Deserialize service data
                 return None  # Placeholder
             return None
         except Exception:
             return None
-    
+
     async def set_service(self, service: Service, ttl: int = 3600) -> bool:
         """Cache service data."""
         try:
-            data = json.dumps({
+            data = {
                 "id": service.id,
                 "category_id": service.category_id,
                 "name": service.name,
@@ -76,31 +74,29 @@ class RedisCacheService(ICacheService):
                 "duration_minutes": service.duration_minutes,
                 "status": service.status.value,
                 "is_popular": service.is_popular,
-            })
-            await self._redis.setex(f"service:{service.id}", ttl, data)
-            return True
+            }
+            return self._redis.set(f"service:{service.id}", data, ttl=ttl)
         except Exception:
             return False
-    
+
     async def delete_service(self, service_id: str) -> bool:
         """Remove service from cache."""
         try:
-            await self._redis.delete(f"service:{service_id}")
-            return True
+            return self._redis.delete(f"service:{service_id}")
         except Exception:
             return False
     
     async def get_popular_services(self) -> Optional[List[Service]]:
         """Get cached popular services."""
         try:
-            data = await self._redis.get("popular_services")
+            data = self._redis.get("popular_services")
             if data:
                 # Deserialize list of services
                 return None  # Placeholder
             return None
         except Exception:
             return None
-    
+
     async def set_popular_services(
         self,
         services: List[Service],
@@ -109,10 +105,10 @@ class RedisCacheService(ICacheService):
         """Cache popular services."""
         try:
             if not services:
-                await self._redis.delete("popular_services")
+                self._redis.delete("popular_services")
                 return True
-            
-            data = json.dumps([
+
+            data = [
                 {
                     "id": s.id,
                     "name": s.name,
@@ -120,9 +116,8 @@ class RedisCacheService(ICacheService):
                     "duration_minutes": s.duration_minutes,
                 }
                 for s in services
-            ])
-            await self._redis.setex("popular_services", ttl, data)
-            return True
+            ]
+            return self._redis.set("popular_services", data, ttl=ttl)
         except Exception:
             return False
     
@@ -132,14 +127,14 @@ class RedisCacheService(ICacheService):
     ) -> Optional[List[Service]]:
         """Get cached services for a category."""
         try:
-            data = await self._redis.get(f"category_services:{category_id}")
+            data = self._redis.get(f"category_services:{category_id}")
             if data:
                 # Deserialize list of services
                 return None  # Placeholder
             return None
         except Exception:
             return None
-    
+
     async def set_category_services(
         self,
         category_id: str,
@@ -148,7 +143,7 @@ class RedisCacheService(ICacheService):
     ) -> bool:
         """Cache services for a category."""
         try:
-            data = json.dumps([
+            data = [
                 {
                     "id": s.id,
                     "name": s.name,
@@ -157,35 +152,26 @@ class RedisCacheService(ICacheService):
                     "is_popular": s.is_popular,
                 }
                 for s in services
-            ])
-            await self._redis.setex(f"category_services:{category_id}", ttl, data)
-            return True
+            ]
+            return self._redis.set(f"category_services:{category_id}", data, ttl=ttl)
         except Exception:
             return False
-    
+
     async def delete_category_services(self, category_id: str) -> bool:
         """Remove category services from cache."""
         try:
-            await self._redis.delete(f"category_services:{category_id}")
-            return True
+            return self._redis.delete(f"category_services:{category_id}")
         except Exception:
             return False
     
     async def invalidate_services_cache(self) -> bool:
         """Invalidate all services cache."""
         try:
-            pattern = "service:*"
-            keys = await self._redis.keys(pattern)
-            if keys:
-                await self._redis.delete(*keys)
-            
-            await self._redis.delete("popular_services")
-            
-            pattern = "category_services:*"
-            keys = await self._redis.keys(pattern)
-            if keys:
-                await self._redis.delete(*keys)
-            
+            # Delete popular services cache
+            self._redis.delete("popular_services")
+            # Note: Pattern-based deletion (service:*, category_services:*)
+            # would require RedisClient.keys() method which is not implemented yet
+            # For now, cache entries will expire based on TTL
             return True
         except Exception:
             return False

@@ -7,7 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from app.shared.auth import AuthenticatedUser
 from ..use_cases.authenticate_user import AuthenticateUserUseCase, AuthenticateUserRequest
 from ..use_cases.check_authorization import (
-    CheckRoleUseCase, CheckPermissionUseCase, CheckStaffUseCase,
+    CheckRoleUseCase, CheckPermissionUseCase, CheckStaffUseCase, CheckManagerUseCase,
     CheckRoleRequest, CheckPermissionRequest, Permission
 )
 from ..domain import UserRole
@@ -25,11 +25,13 @@ class HttpAuthenticationAdapter:
         check_role_use_case: CheckRoleUseCase,
         check_permission_use_case: CheckPermissionUseCase,
         check_staff_use_case: CheckStaffUseCase,
+        check_manager_use_case: CheckManagerUseCase,
     ):
         self._authenticate_user = authenticate_user_use_case
         self._check_role = check_role_use_case
         self._check_permission = check_permission_use_case
         self._check_staff = check_staff_use_case
+        self._check_manager = check_manager_use_case
     
     async def authenticate_from_credentials(
         self, 
@@ -105,7 +107,7 @@ class HttpAuthenticationAdapter:
     
     async def require_staff(self, user: AuthenticatedUser) -> AuthenticatedUser:
         """Require user to be staff.
-        
+
         Raises:
             HTTPException: If user is not staff
         """
@@ -113,13 +115,30 @@ class HttpAuthenticationAdapter:
             domain_user = self._to_domain_user(user)
             await self._check_staff.execute(domain_user)
             return user
-            
+
         except InsufficientPermissionError as e:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=str(e)
             )
-    
+
+    async def require_manager(self, user: AuthenticatedUser) -> AuthenticatedUser:
+        """Require user to be manager or admin.
+
+        Raises:
+            HTTPException: If user is not manager or admin
+        """
+        try:
+            domain_user = self._to_domain_user(user)
+            await self._check_manager.execute(domain_user)
+            return user
+
+        except InsufficientPermissionError as e:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=str(e)
+            )
+
     def _to_domain_user(self, auth_user: AuthenticatedUser):
         """Convert AuthenticatedUser to domain User."""
         # Import here to avoid circular imports

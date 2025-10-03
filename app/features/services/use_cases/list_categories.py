@@ -40,27 +40,27 @@ class ListCategoriesUseCase:
         self._category_repository = category_repository
         self._cache_service = cache_service
     
-    def execute(self, request: ListCategoriesRequest) -> ListCategoriesResponse:
+    async def execute(self, request: ListCategoriesRequest) -> ListCategoriesResponse:
         """Execute the list categories use case."""
-        
+
         # Get categories from repository
-        categories = self._category_repository.list_all(
+        categories = await self._category_repository.list_all(
             include_inactive=request.include_inactive
         )
-        
+
         # Convert to summary format
         category_summaries = [
             CategorySummary(
                 id=cat.id,
                 name=cat.name,
                 description=cat.description,
-                status=cat.status.value,
+                status=cat.status.value if hasattr(cat.status, 'value') else cat.status,
                 display_order=cat.display_order,
                 service_count=0,
             )
             for cat in categories
         ]
-        
+
         return ListCategoriesResponse(
             categories=category_summaries,
             total_count=len(category_summaries),

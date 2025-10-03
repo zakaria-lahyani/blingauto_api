@@ -52,13 +52,8 @@ except ImportError as e:
     from fastapi import APIRouter
     vehicles_router = APIRouter()
 
-try:
-    from app.features.pricing.api.router import router as pricing_router
-    print("Successfully loaded pricing router")
-except ImportError as e:
-    print(f"Failed to load pricing router: {e}")
-    from fastapi import APIRouter
-    pricing_router = APIRouter()
+# Pricing feature removed
+# pricing_router is no longer available
 
 try:
     from app.features.scheduling.api.router import router as scheduling_router
@@ -164,8 +159,8 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     
     # Include routers
-    # Health endpoints (no versioning)
-    app.include_router(health_router, prefix="/health", tags=["Health"])
+    # Health endpoints (no versioning, no prefix)
+    app.include_router(health_router, tags=["Health"])
     
     # API v1 endpoints
     API_V1_PREFIX = "/api/v1"
@@ -173,7 +168,8 @@ def create_app() -> FastAPI:
     app.include_router(bookings_router, prefix=f"{API_V1_PREFIX}/bookings", tags=["Bookings"])
     app.include_router(services_router, prefix=f"{API_V1_PREFIX}/services", tags=["Services"])
     app.include_router(vehicles_router, prefix=f"{API_V1_PREFIX}/vehicles", tags=["Vehicles"])
-    app.include_router(pricing_router, prefix=f"{API_V1_PREFIX}/pricing", tags=["Pricing"])
+    # Pricing router removed
+    # app.include_router(pricing_router, prefix=f"{API_V1_PREFIX}/pricing", tags=["Pricing"])
     app.include_router(scheduling_router, prefix=f"{API_V1_PREFIX}/scheduling", tags=["Scheduling"])
     app.include_router(wash_bays_router, prefix=f"{API_V1_PREFIX}/facilities/wash-bays", tags=["Facilities - Wash Bays"])
     app.include_router(mobile_teams_router, prefix=f"{API_V1_PREFIX}/facilities/mobile-teams", tags=["Facilities - Mobile Teams"])

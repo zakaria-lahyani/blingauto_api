@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import get_db_session
+from app.core.db import get_db
 from app.features.inventory.adapters.repositories import (
     ProductRepository,
     StockMovementRepository,
@@ -38,21 +38,21 @@ from app.features.inventory.use_cases.get_low_stock_alerts import (
 
 
 def get_product_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)]
+    session: Annotated[AsyncSession, Depends(get_db)]
 ) -> ProductRepository:
     """Get product repository."""
     return ProductRepository(session)
 
 
 def get_stock_movement_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)]
+    session: Annotated[AsyncSession, Depends(get_db)]
 ) -> StockMovementRepository:
     """Get stock movement repository."""
     return StockMovementRepository(session)
 
 
 def get_supplier_repository(
-    session: Annotated[AsyncSession, Depends(get_db_session)]
+    session: Annotated[AsyncSession, Depends(get_db)]
 ) -> SupplierRepository:
     """Get supplier repository."""
     return SupplierRepository(session)

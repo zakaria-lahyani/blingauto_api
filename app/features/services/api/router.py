@@ -1,9 +1,12 @@
 from typing import List, Optional
 from decimal import Decimal
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status, Request
 from fastapi.responses import JSONResponse
+import logging
 
-from app.shared.auth import get_current_user, require_any_role, CurrentUser, AdminUser
+from app.shared.auth import get_current_user as get_auth_user, require_any_role
+from app.shared.auth.contracts import AuthenticatedUser
+from app.features.auth.api.dependencies import CurrentUser, AdminUser
 from app.features.services.use_cases import (
     CreateCategoryUseCase,
     CreateServiceUseCase,
@@ -52,6 +55,7 @@ from app.core.errors.exceptions import (
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 
 # Auth dependency helpers - use shared auth
 require_manager_or_admin = require_any_role("admin", "manager")
@@ -61,20 +65,20 @@ require_admin_role = require_any_role("admin")
 @router.post("/categories", response_model=CreateCategoryResponseSchema)
 async def create_category(
     category_data: CreateCategorySchema,
-    current_user=AdminUser,
+    current_user: AuthenticatedUser = Depends(require_admin_role),
     use_case: CreateCategoryUseCase = Depends(get_create_category_use_case),
 ):
     """Create a new service category. Admin only."""
     try:
         from app.features.services.use_cases.create_category import CreateCategoryRequest
-        
-        request = CreateCategoryRequest(
+
+        use_case_request = CreateCategoryRequest(
             name=category_data.name,
             description=category_data.description,
             display_order=category_data.display_order,
             created_by=current_user.id,
         )
-        result = await use_case.execute(request)
+        result = await use_case.execute(use_case_request)
         
         return CreateCategoryResponseSchema(
             category_id=result.category_id,
@@ -83,35 +87,46 @@ async def create_category(
             status=result.status,
             display_order=result.display_order,
         )
-    
+
     except ValidationError as e:
+        logger.error(f"Validation error in create_category: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except BusinessRuleViolationError as e:
+        logger.error(f"Business rule violation in create_category: {e}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
         )
+    except Exception as e:
+        logger.error(f"Unexpected error in create_category: {type(e).__name__}: {e}", exc_info=True)
+        raise
 
 
 @router.get("/categories", response_model=CategoryListResponseSchema)
 async def list_categories(
     include_inactive: bool = Query(False, description="Include inactive categories"),
-    current_user=Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(require_any_role("admin", "manager", "client", "washer")),
     use_case: ListCategoriesUseCase = Depends(get_list_categories_use_case),
 ):
     """List all service categories."""
     try:
         from app.features.services.use_cases.list_categories import ListCategoriesRequest
-        
+
+        logger.info(f"Current user type: {type(current_user)}, value: {current_user}")
+        logger.info(f"Listing categories: include_inactive={include_inactive}, user={current_user.id}")
+
         request = ListCategoriesRequest(
             include_inactive=include_inactive,
             requesting_user_id=current_user.id,
         )
+
+        logger.info("Executing list categories use case")
         result = await use_case.execute(request)
-        
+        logger.info(f"Got {len(result.categories)} categories from use case")
+
         categories = [
             CategoryResponseSchema(
                 id=cat.id,
@@ -123,24 +138,27 @@ async def list_categories(
             )
             for cat in result.categories
         ]
-        
+
+        logger.info(f"Returning {len(categories)} categories")
         return CategoryListResponseSchema(
             categories=categories,
             total_count=result.total_count,
         )
-    
+
     except Exception as e:
+        logger.error(f"Error listing categories: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve categories"
+            detail=f"Failed to retrieve categories: {str(e)}"
         )
 
 
 @router.post("/categories/{category_id}/services", response_model=CreateServiceResponseSchema)
 async def create_service(
     category_id: str,
+    *,
     service_data: CreateServiceSchema,
-    current_user=Depends(require_manager_or_admin),
+    current_user: AuthenticatedUser = Depends(require_manager_or_admin),
     use_case: CreateServiceUseCase = Depends(get_create_service_use_case),
 ):
     """Create a new service in a category. Manager or Admin only."""
@@ -157,20 +175,21 @@ async def create_service(
             display_order=service_data.display_order,
             created_by=current_user.id,
         )
-        service = await use_case.execute(request)
-        
+        response = await use_case.execute(request)
+
+        # The use case returns CreateServiceResponse, just return it directly
         return CreateServiceResponseSchema(
-            service_id=service.id,
-            category_id=service.category_id,
-            name=service.name,
-            description=service.description,
-            price=service.price,
-            duration_minutes=service.duration_minutes,
-            status=service.status.value,
-            is_popular=service.is_popular,
-            display_order=service.display_order,
-            price_display=service.price_display,
-            duration_display=service.duration_display,
+            service_id=response.service_id,
+            category_id=response.category_id,
+            name=response.name,
+            description=response.description,
+            price=response.price,
+            duration_minutes=response.duration_minutes,
+            status=response.status,
+            is_popular=response.is_popular,
+            display_order=response.display_order,
+            price_display=response.price_display,
+            duration_display=response.duration_display,
         )
     
     except ValidationError as e:
@@ -194,61 +213,60 @@ async def create_service(
 async def list_services(
     category_id: Optional[str] = Query(None, description="Filter by category"),
     include_inactive: bool = Query(False, description="Include inactive services"),
+    is_popular: bool = Query(False, description="Filter popular services only"),
+    search: Optional[str] = Query(None, description="Search by name or description"),
     min_price: Optional[Decimal] = Query(None, ge=0, description="Minimum price filter"),
     max_price: Optional[Decimal] = Query(None, ge=0, description="Maximum price filter"),
     min_duration: Optional[int] = Query(None, ge=0, description="Minimum duration (minutes)"),
     max_duration: Optional[int] = Query(None, ge=0, description="Maximum duration (minutes)"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_user=Depends(get_current_user),
+    current_user: AuthenticatedUser = CurrentUser,
     use_case: ListServicesUseCase = Depends(get_list_services_use_case),
 ):
     """List services with optional filters and pagination."""
     try:
-        filters = {}
-        if category_id:
-            filters["category_id"] = category_id
-        if min_price is not None:
-            filters["min_price"] = min_price
-        if max_price is not None:
-            filters["max_price"] = max_price
-        if min_duration is not None:
-            filters["min_duration"] = min_duration
-        if max_duration is not None:
-            filters["max_duration"] = max_duration
-        
-        result = await use_case.execute(
-            filters=filters,
+        from app.features.services.use_cases.list_services import ListServicesRequest
+
+        request = ListServicesRequest(
+            category_id=category_id,
             include_inactive=include_inactive,
+            popular_only=is_popular,
+            min_price=min_price,
+            max_price=max_price,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            search_query=search,
             page=page,
             limit=limit,
-            requesting_user_id=current_user.id,
         )
-        
+
+        result = await use_case.execute(request)
+
         services = [
             ServiceSummarySchema(
                 id=srv.id,
                 category_id=srv.category_id,
-                category_name=result.get("category_names", {}).get(srv.category_id, "Unknown"),
+                category_name=srv.category_name,
                 name=srv.name,
                 description=srv.description,
                 price=srv.price,
                 duration_minutes=srv.duration_minutes,
-                status=srv.status.value,
+                status=srv.status,
                 is_popular=srv.is_popular,
                 price_display=srv.price_display,
                 duration_display=srv.duration_display,
             )
-            for srv in result["services"]
+            for srv in result.services
         ]
-        
+
         return ServiceListResponseSchema(
             services=services,
-            total_count=result["total_count"],
+            total_count=result.total_count,
             page=page,
             limit=limit,
-            has_next=result["has_next"],
-            filters_applied=filters,
+            has_next=result.has_next,
+            filters_applied=result.filters_applied,
         )
     
     except ValidationError as e:
@@ -261,7 +279,7 @@ async def list_services(
 @router.get("/popular", response_model=PopularServicesResponseSchema)
 async def get_popular_services(
     limit: int = Query(10, ge=1, le=50, description="Number of popular services"),
-    current_user=Depends(get_current_user),
+    current_user: AuthenticatedUser = CurrentUser,
     use_case: GetPopularServicesUseCase = Depends(get_popular_services_use_case),
 ):
     """Get popular services."""
@@ -305,7 +323,7 @@ async def search_services(
     q: str = Query(..., min_length=2, description="Search query"),
     category_id: Optional[str] = Query(None, description="Filter by category"),
     limit: int = Query(20, ge=1, le=50, description="Maximum results"),
-    current_user=Depends(get_current_user),
+    current_user: AuthenticatedUser = CurrentUser,
     use_case: SearchServicesUseCase = Depends(get_search_services_use_case),
 ):
     """Search services by name or description."""
@@ -353,16 +371,19 @@ async def search_services(
 @router.get("/{service_id}", response_model=ServiceResponseSchema)
 async def get_service(
     service_id: str,
-    current_user=Depends(get_current_user),
+    current_user: AuthenticatedUser = CurrentUser,
     use_case: GetServiceUseCase = Depends(get_get_service_use_case),
 ):
     """Get a specific service by ID."""
     try:
-        service = await use_case.execute(
+        from app.features.services.use_cases.get_service import GetServiceRequest
+
+        request = GetServiceRequest(
             service_id=service_id,
             requesting_user_id=current_user.id,
         )
-        
+        service = await use_case.execute(request)
+
         return ServiceResponseSchema(
             id=service.id,
             category_id=service.category_id,
@@ -370,7 +391,7 @@ async def get_service(
             description=service.description,
             price=service.price,
             duration_minutes=service.duration_minutes,
-            status=service.status.value,
+            status=service.status,
             is_popular=service.is_popular,
             display_order=service.display_order,
             price_display=service.price_display,
@@ -387,27 +408,31 @@ async def get_service(
 @router.patch("/{service_id}/price", response_model=UpdateServicePriceResponseSchema)
 async def update_service_price(
     service_id: str,
+    *,
     price_data: UpdateServicePriceSchema,
-    current_user=Depends(require_manager_or_admin),
+    current_user: AuthenticatedUser = Depends(require_manager_or_admin),
     use_case: UpdateServicePriceUseCase = Depends(get_update_service_price_use_case),
 ):
     """Update service price. Manager or Admin only."""
     try:
-        result = await use_case.execute(
+        from app.features.services.use_cases.update_service_price import UpdateServicePriceRequest
+
+        request = UpdateServicePriceRequest(
             service_id=service_id,
             new_price=price_data.new_price,
             notify_customers=price_data.notify_customers,
             updated_by=current_user.id,
         )
-        
+        result = await use_case.execute(request)
+
         return UpdateServicePriceResponseSchema(
-            service_id=result["service"].id,
-            old_price=result["old_price"],
-            new_price=result["new_price"],
-            price_change_percent=result["price_change_percent"],
-            affected_future_bookings=result["affected_bookings"],
-            customers_notified=result["customers_notified"],
-            price_display=result["service"].price_display,
+            service_id=result.service_id,
+            old_price=result.old_price,
+            new_price=result.new_price,
+            price_change_percent=result.price_change_percent,
+            affected_future_bookings=result.affected_future_bookings,
+            customers_notified=result.customers_notified,
+            price_display=result.price_display,
         )
     
     except NotFoundError as e:
@@ -430,26 +455,28 @@ async def update_service_price(
 @router.patch("/{service_id}/popular", response_model=SetServicePopularResponseSchema)
 async def set_service_popular(
     service_id: str,
+    *,
     popular_data: SetServicePopularSchema,
-    current_user=Depends(require_manager_or_admin),
+    current_user: AuthenticatedUser = Depends(require_manager_or_admin),
     use_case: SetServicePopularUseCase = Depends(get_set_service_popular_use_case),
 ):
     """Set or unset service as popular. Manager or Admin only."""
     try:
-        result = await use_case.execute(
+        from app.features.services.use_cases.set_service_popular import SetServicePopularRequest
+
+        request = SetServicePopularRequest(
             service_id=service_id,
             is_popular=popular_data.is_popular,
             updated_by=current_user.id,
         )
-        
-        message = "Service marked as popular" if popular_data.is_popular else "Service unmarked as popular"
-        
+        result = await use_case.execute(request)
+
         return SetServicePopularResponseSchema(
-            service_id=result["service"].id,
-            name=result["service"].name,
-            is_popular=result["service"].is_popular,
-            category_popular_count=result["category_popular_count"],
-            message=message,
+            service_id=result.service_id,
+            name=result.name,
+            is_popular=result.is_popular,
+            category_popular_count=result.category_popular_count,
+            message=result.message,
         )
     
     except NotFoundError as e:
@@ -468,7 +495,7 @@ async def set_service_popular(
 async def deactivate_service(
     service_id: str,
     reason: str = Query(..., min_length=10, description="Reason for deactivation"),
-    current_user=Depends(require_admin_role),
+    current_user: AuthenticatedUser = Depends(require_admin_role),
     use_case: DeactivateServiceUseCase = Depends(get_deactivate_service_use_case),
 ):
     """Deactivate a service. Admin only."""

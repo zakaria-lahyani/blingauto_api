@@ -191,14 +191,20 @@ class RegisterResponse(BaseModel):
         }
 
 
-class LoginResponse(BaseModel):
-    access_token: str = Field(..., description="JWT access token")
-    refresh_token: str = Field(..., description="Refresh token")
-    token_type: str = Field(default="bearer", description="Token type")
+class UserInfo(BaseModel):
+    """User information in login response."""
     user_id: str = Field(..., description="User ID")
     email: str = Field(..., description="User email")
     full_name: str = Field(..., description="User full name")
     role: str = Field(..., description="User role")
+
+
+class LoginResponse(BaseModel):
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="Refresh token")
+    token_type: str = Field(default="bearer", description="Token type")
+    expires_in: int = Field(..., description="Token expiration time in seconds")
+    user: UserInfo = Field(..., description="User information")
 
     class Config:
         json_schema_extra = {
@@ -206,10 +212,13 @@ class LoginResponse(BaseModel):
                 "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
                 "refresh_token": "refresh_token_here",
                 "token_type": "bearer",
-                "user_id": "12345",
-                "email": "user@example.com",
-                "full_name": "John Doe",
-                "role": "client"
+                "expires_in": 900,
+                "user": {
+                    "id": "12345",
+                    "email": "user@example.com",
+                    "full_name": "John Doe",
+                    "role": "client"
+                }
             }
         }
 

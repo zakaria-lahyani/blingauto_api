@@ -1,0 +1,908 @@
+{
+	"info": {
+		"_postman_id": "facilities-management",
+		"name": "11 - Facilities Management Complete Testing",
+		"description": "Comprehensive wash bays and mobile teams management - CRUD, RBAC, business rules validation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Wash Bays Management",
+			"item": [
+				{
+					"name": "Create Wash Bay - Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wash bay created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.bay_number).to.equal('BAY-001');",
+									"    pm.expect(response.max_vehicle_size).to.equal('large');",
+									"    pm.expect(response.status).to.equal('active');",
+									"    pm.expect(response.equipment_types).to.be.an('array');",
+									"    pm.expect(response.equipment_types).to.include('pressure_washer');",
+									"    pm.expect(response).to.have.property('location');",
+									"    pm.expect(response.location.latitude).to.equal(40.7128);",
+									"    pm.expect(response.location.longitude).to.equal(-74.0060);",
+									"    pm.environment.set('test_wash_bay_id', response.id);",
+									"    console.log('✓ Wash bay created:', response.bay_number);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bay_number\": \"BAY-001\",\n  \"max_vehicle_size\": \"large\",\n  \"equipment_types\": [\"pressure_washer\", \"foam_cannon\", \"vacuum\"],\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				},
+				{
+					"name": "Create Wash Bay - Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can create wash bay (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.bay_number).to.equal('BAY-002');",
+									"    pm.environment.set('manager_wash_bay_id', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bay_number\": \"BAY-002\",\n  \"max_vehicle_size\": \"standard\",\n  \"equipment_types\": [\"pressure_washer\", \"wax_applicator\"],\n  \"latitude\": 40.7130,\n  \"longitude\": -74.0062\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				},
+				{
+					"name": "Create Wash Bay - Duplicate Bay Number (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Duplicate bay number rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bay_number\": \"BAY-001\",\n  \"max_vehicle_size\": \"compact\",\n  \"equipment_types\": [\"pressure_washer\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				},
+				{
+					"name": "List All Wash Bays",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wash bays listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('wash_bays');",
+									"    pm.expect(response.wash_bays).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total_count');",
+									"    pm.expect(response).to.have.property('active_count');",
+									"    pm.expect(response).to.have.property('inactive_count');",
+									"    pm.expect(response).to.have.property('maintenance_count');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				},
+				{
+					"name": "List Wash Bays - Filter by Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wash bays filtered by status (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    response.wash_bays.forEach(bay => {",
+									"        pm.expect(bay.status).to.equal('active');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays?status=active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"],
+							"query": [{"key": "status", "value": "active"}]
+						}
+					}
+				},
+				{
+					"name": "List Wash Bays - Washer Access (✓)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer can view wash bays (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				},
+				{
+					"name": "Update Wash Bay - Change Status to Maintenance",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wash bay updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('maintenance');",
+									"    pm.expect(response.equipment_types).to.include('dryer');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"maintenance\",\n  \"equipment_types\": [\"pressure_washer\", \"foam_cannon\", \"vacuum\", \"dryer\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays/{{test_wash_bay_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays", "{{test_wash_bay_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Wash Bay - Change Bay Number",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bay number updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.bay_number).to.equal('BAY-001-UPDATED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bay_number\": \"BAY-001-UPDATED\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays/{{test_wash_bay_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays", "{{test_wash_bay_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Wash Bay - Washer Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot update wash bay (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"inactive\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays/{{test_wash_bay_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays", "{{test_wash_bay_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Wash Bay - Admin Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wash bay deleted (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.deleted).to.be.true;",
+									"    pm.expect(response).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays/{{test_wash_bay_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays", "{{test_wash_bay_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Wash Bay - Manager Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot delete wash bay (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays/{{manager_wash_bay_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays", "{{manager_wash_bay_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Mobile Teams Management",
+			"item": [
+				{
+					"name": "Create Mobile Team - Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Mobile team created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response.team_name).to.equal('Alpha Team');",
+									"    pm.expect(response.service_radius_km).to.equal(50);",
+									"    pm.expect(response.daily_capacity).to.equal(8);",
+									"    pm.expect(response.status).to.equal('active');",
+									"    pm.expect(response).to.have.property('base_location');",
+									"    pm.expect(response.base_location.latitude).to.equal(40.7128);",
+									"    pm.expect(response.base_location.longitude).to.equal(-74.0060);",
+									"    pm.expect(response.equipment_types).to.be.an('array');",
+									"    pm.environment.set('test_mobile_team_id', response.id);",
+									"    console.log('✓ Mobile team created:', response.team_name);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"team_name\": \"Alpha Team\",\n  \"base_latitude\": 40.7128,\n  \"base_longitude\": -74.0060,\n  \"service_radius_km\": 50,\n  \"daily_capacity\": 8,\n  \"equipment_types\": [\"mobile_pressure_washer\", \"water_tank\", \"generator\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "Create Mobile Team - Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can create mobile team (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.team_name).to.equal('Bravo Team');",
+									"    pm.environment.set('manager_mobile_team_id', response.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"team_name\": \"Bravo Team\",\n  \"base_latitude\": 40.7580,\n  \"base_longitude\": -73.9855,\n  \"service_radius_km\": 30,\n  \"daily_capacity\": 6,\n  \"equipment_types\": [\"mobile_pressure_washer\", \"foam_cannon\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "Create Mobile Team - Duplicate Name (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Duplicate team name rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"team_name\": \"Alpha Team\",\n  \"base_latitude\": 40.7128,\n  \"base_longitude\": -74.0060,\n  \"service_radius_km\": 50,\n  \"daily_capacity\": 5,\n  \"equipment_types\": [\"mobile_pressure_washer\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "List All Mobile Teams",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Mobile teams listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('mobile_teams');",
+									"    pm.expect(response.mobile_teams).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total_count');",
+									"    pm.expect(response).to.have.property('active_count');",
+									"    pm.expect(response).to.have.property('inactive_count');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "List Mobile Teams - Filter by Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Mobile teams filtered (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    response.mobile_teams.forEach(team => {",
+									"        pm.expect(team.status).to.equal('active');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams?status=active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"],
+							"query": [{"key": "status", "value": "active"}]
+						}
+					}
+				},
+				{
+					"name": "List Mobile Teams - Washer Access (✓)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer can view mobile teams (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "Update Mobile Team - Expand Service Radius",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Mobile team updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.service_radius_km).to.equal(75);",
+									"    pm.expect(response.daily_capacity).to.equal(10);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service_radius_km\": 75,\n  \"daily_capacity\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams/{{test_mobile_team_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams", "{{test_mobile_team_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Mobile Team - Change Base Location",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Base location updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.base_location.latitude).to.equal(40.7500);",
+									"    pm.expect(response.base_location.longitude).to.equal(-73.9900);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"base_latitude\": 40.7500,\n  \"base_longitude\": -73.9900\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams/{{test_mobile_team_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams", "{{test_mobile_team_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Mobile Team - Washer Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot update mobile team (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"inactive\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams/{{test_mobile_team_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams", "{{test_mobile_team_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Mobile Team - Admin Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Mobile team deleted (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.deleted).to.be.true;",
+									"    pm.expect(response).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams/{{test_mobile_team_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams", "{{test_mobile_team_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Mobile Team - Manager Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot delete mobile team (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams/{{manager_mobile_team_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams", "{{manager_mobile_team_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Edge Cases & Validation",
+			"item": [
+				{
+					"name": "Create Wash Bay - Invalid Vehicle Size (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid vehicle size rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bay_number\": \"BAY-999\",\n  \"max_vehicle_size\": \"gigantic\",\n  \"equipment_types\": [\"pressure_washer\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				},
+				{
+					"name": "Create Mobile Team - Invalid Service Radius (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid service radius rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"team_name\": \"Invalid Team\",\n  \"base_latitude\": 40.7128,\n  \"base_longitude\": -74.0060,\n  \"service_radius_km\": -10,\n  \"daily_capacity\": 5,\n  \"equipment_types\": [\"mobile_pressure_washer\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "Create Mobile Team - Invalid Coordinates (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid coordinates rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"team_name\": \"Invalid Coords Team\",\n  \"base_latitude\": 200,\n  \"base_longitude\": 300,\n  \"service_radius_km\": 50,\n  \"daily_capacity\": 5,\n  \"equipment_types\": [\"mobile_pressure_washer\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/mobile-teams",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "mobile-teams"]
+						}
+					}
+				},
+				{
+					"name": "Update Nonexistent Wash Bay (✗ 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Nonexistent wash bay returns 404\", function() {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays/nonexistent-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays", "nonexistent-id-123"]
+						}
+					}
+				},
+				{
+					"name": "Filter by Invalid Status (✗ 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid status filter rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays?status=invalid_status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"],
+							"query": [{"key": "status", "value": "invalid_status"}]
+						}
+					}
+				},
+				{
+					"name": "Client Access to Facilities (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client cannot access facilities (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/facilities/wash-bays",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "facilities", "wash-bays"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

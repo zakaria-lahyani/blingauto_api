@@ -1,0 +1,327 @@
+{
+	"info": {
+		"_postman_id": "services-categories",
+		"name": "03 - Services & Categories Complete Testing",
+		"description": "Comprehensive testing for services and categories - CRUD operations, pricing, popular services",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Category Management",
+			"item": [
+				{
+					"name": "Create Category - Admin",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": ["const timestamp = Date.now();", "pm.environment.set('test_category_name', `Test Category ${timestamp}`);"],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Category created (201)\", function() {", "    pm.response.to.have.status(201);", "    const response = pm.response.json();", "    pm.expect(response).to.have.property('category_id');", "    pm.environment.set('test_category_id', response.category_id);", "});"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"{{test_category_name}}\",\n  \"description\": \"Test category description\",\n  \"display_order\": 100\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/categories", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories"]}
+					}
+				},
+				{
+					"name": "Create Category - Manager ✗",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Manager cannot create category (403)\", function() {", "    pm.response.to.have.status(403);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"Unauthorized Category\",\n  \"description\": \"Should fail\"\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/categories", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories"]}
+					}
+				},
+				{
+					"name": "List Categories - All Users",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Categories listed (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.categories).to.be.an('array');", "    pm.expect(response).to.have.property('total_count');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/categories", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories"]}
+					}
+				},
+				{
+					"name": "List Categories - Include Inactive",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"All categories listed (200)\", function() {", "    pm.response.to.have.status(200);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/categories?include_inactive=true", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories"], "query": [{"key": "include_inactive", "value": "true"}]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Service Management",
+			"item": [
+				{
+					"name": "Create Service - Admin",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {"exec": ["const timestamp = Date.now();", "pm.environment.set('test_service_name', `Test Service ${timestamp}`);"], "type": "text/javascript"}
+						},
+						{
+							"listen": "test",
+							"script": {"exec": ["pm.test(\"Service created (201)\", function() {", "    pm.response.to.have.status(201);", "    const response = pm.response.json();", "    pm.expect(response).to.have.property('service_id');", "    pm.expect(response.price).to.equal('45.99');", "    pm.environment.set('test_service_id', response.service_id);", "});"], "type": "text/javascript"}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"{{test_service_name}}\",\n  \"description\": \"High quality test service\",\n  \"price\": 45.99,\n  \"duration_minutes\": 60,\n  \"is_popular\": false,\n  \"display_order\": 10\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/categories/{{test_category_id}}/services", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories", "{{test_category_id}}", "services"]}
+					}
+				},
+				{
+					"name": "Create Service - Manager",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Manager can create service (201)\", function() {", "    pm.response.to.have.status(201);", "    pm.environment.set('manager_service_id', pm.response.json().service_id);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"Manager Service\",\n  \"description\": \"Created by manager\",\n  \"price\": 29.99,\n  \"duration_minutes\": 30\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/categories/{{test_category_id}}/services", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories", "{{test_category_id}}", "services"]}
+					}
+				},
+				{
+					"name": "Create Service - Client ✗",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Client cannot create service (403)\", function() {", "    pm.response.to.have.status(403);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"Unauthorized Service\",\n  \"price\": 10.00\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/categories/{{test_category_id}}/services", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "categories", "{{test_category_id}}", "services"]}
+					}
+				},
+				{
+					"name": "Get Service by ID",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Service retrieved (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.id).to.equal(pm.environment.get('test_service_id'));", "    pm.expect(response).to.have.property('category_id');", "    pm.expect(response).to.have.property('price_display');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/{{test_service_id}}", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{test_service_id}}"]}
+					}
+				},
+				{
+					"name": "Get Service - Not Found",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Service not found (404)\", function() {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/non-existent-id", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "non-existent-id"]}
+					}
+				},
+				{
+					"name": "List Services - All",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Services listed (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.services).to.be.an('array');", "    pm.expect(response).to.have.property('total_count');", "    pm.expect(response).to.have.property('page');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?limit=20&page=1", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "limit", "value": "20"}, {"key": "page", "value": "1"}]}
+					}
+				},
+				{
+					"name": "List Services - By Category",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Filtered services listed (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.filters_applied.category_id).to.exist;", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?category_id={{test_category_id}}", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "category_id", "value": "{{test_category_id}}"}]}
+					}
+				},
+				{
+					"name": "List Services - Popular Only",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Popular services listed (200)\", function() {", "    pm.response.to.have.status(200);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?is_popular=true", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "is_popular", "value": "true"}]}
+					}
+				},
+				{
+					"name": "List Services - Price Range",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Price filtered services (200)\", function() {", "    pm.response.to.have.status(200);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?min_price=20&max_price=50", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "min_price", "value": "20"}, {"key": "max_price", "value": "50"}]}
+					}
+				},
+				{
+					"name": "Search Services",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Search results returned (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.filters_applied.search_query).to.exist;", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/search?q=wash&limit=10", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "search"], "query": [{"key": "q", "value": "wash"}, {"key": "limit", "value": "10"}]}
+					}
+				},
+				{
+					"name": "Get Popular Services",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Popular services retrieved (200)\", function() {", "    pm.response.to.have.status(200);", "    pm.expect(pm.response.json().services).to.be.an('array');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/popular?limit=5", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "popular"], "query": [{"key": "limit", "value": "5"}]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Service Updates",
+			"item": [
+				{
+					"name": "Update Service Price - Manager",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Price updated (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.new_price).to.equal('55.99');", "    pm.expect(response).to.have.property('price_change_percent');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"new_price\": 55.99,\n  \"notify_customers\": false\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/{{test_service_id}}/price", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{test_service_id}}", "price"]}
+					}
+				},
+				{
+					"name": "Update Service Price - Washer ✗",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Washer cannot update price (403)\", function() {", "    pm.response.to.have.status(403);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"new_price\": 99.99\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/{{test_service_id}}/price", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{test_service_id}}", "price"]}
+					}
+				},
+				{
+					"name": "Set Service Popular - Admin",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Service marked as popular (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.is_popular).to.be.true;", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"is_popular\": true\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/{{test_service_id}}/popular", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{test_service_id}}", "popular"]}
+					}
+				},
+				{
+					"name": "Deactivate Service - Admin",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Service deactivated (200)\", function() {", "    pm.response.to.have.status(200);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/{{test_service_id}}?reason=Test deactivation for testing purposes", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{test_service_id}}"], "query": [{"key": "reason", "value": "Test deactivation for testing purposes"}]}
+					}
+				},
+				{
+					"name": "Deactivate Service - Manager ✗",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Manager cannot deactivate (403)\", function() {", "    pm.response.to.have.status(403);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/{{manager_service_id}}?reason=Trying to deactivate", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{manager_service_id}}"], "query": [{"key": "reason", "value": "Trying to deactivate"}]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Advanced Service Scenarios",
+			"item": [
+				{
+					"name": "Create Service - Negative Price (✗)",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Negative price rejected (400/422)\", function() {", "    pm.response.to.be.oneOf([400, 422]);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"Invalid Service\",\n  \"category_id\": \"{{test_category_id}}\",\n  \"base_price\": -50.00,\n  \"estimated_duration\": 30\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services", "host": ["{{base_url}}"], "path": ["api", "v1", "services"]}
+					}
+				},
+				{
+					"name": "Create Service - Zero Duration (✗)",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Zero duration rejected (400/422)\", function() {", "    pm.response.to.be.oneOf([400, 422]);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"name\": \"Zero Duration Service\",\n  \"category_id\": \"{{test_category_id}}\",\n  \"base_price\": 50.00,\n  \"estimated_duration\": 0\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services", "host": ["{{base_url}}"], "path": ["api", "v1", "services"]}
+					}
+				},
+				{
+					"name": "Search Services - By Name",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Services searched by name (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.items).to.be.an('array');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?search=Premium", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "search", "value": "Premium"}]}
+					}
+				},
+				{
+					"name": "Filter Services - By Category",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Services filtered by category (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.items).to.be.an('array');", "    response.items.forEach(item => {", "        pm.expect(item.category_id).to.equal(pm.environment.get('test_category_id'));", "    });", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?category_id={{test_category_id}}", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "category_id", "value": "{{test_category_id}}"}]}
+					}
+				},
+				{
+					"name": "Filter Services - Active Only",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Active services only (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.items).to.be.an('array');", "    response.items.forEach(item => {", "        pm.expect(item.is_active).to.be.true;", "    });", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?is_active=true", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "is_active", "value": "true"}]}
+					}
+				},
+				{
+					"name": "Get Popular Services",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Popular services retrieved (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response.items).to.be.an('array');", "    response.items.forEach(item => {", "        pm.expect(item.is_popular).to.be.true;", "    });", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services?is_popular=true", "host": ["{{base_url}}"], "path": ["api", "v1", "services"], "query": [{"key": "is_popular", "value": "true"}]}
+					}
+				},
+				{
+					"name": "Update Service - Price Too High (✗)",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Unrealistic price rejected (400)\", function() {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"new_price\": 999999.99\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/{{manager_service_id}}/price", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{manager_service_id}}", "price"]}
+					}
+				},
+				{
+					"name": "Bulk Update Service Prices",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Bulk price update (200)\", function() {", "    pm.response.to.have.status(200);", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"body": {"mode": "raw", "raw": "{\n  \"service_ids\": [\"{{test_service_id}}\", \"{{manager_service_id}}\"],\n  \"price_adjustment\": 5.00,\n  \"adjustment_type\": \"increase\"\n}"},
+						"url": {"raw": "{{base_url}}/api/v1/services/bulk/price", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "bulk", "price"]}
+					}
+				},
+				{
+					"name": "Get Service Statistics",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Service stats retrieved (200)\", function() {", "    pm.response.to.have.status(200);", "    const response = pm.response.json();", "    pm.expect(response).to.have.property('total_bookings');", "    pm.expect(response).to.have.property('average_rating');", "});"], "type": "text/javascript"}}],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {"raw": "{{base_url}}/api/v1/services/{{test_service_id}}/stats", "host": ["{{base_url}}"], "path": ["api", "v1", "services", "{{test_service_id}}", "stats"]}
+					}
+				}
+			]
+		}
+	]
+}

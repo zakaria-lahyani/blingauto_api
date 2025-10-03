@@ -1,0 +1,714 @@
+{
+	"info": {
+		"_postman_id": "walkins-complete-flow",
+		"name": "01 - Walk-ins Complete Flow",
+		"description": "Complete walk-in service lifecycle testing with all scenarios",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Setup - Login as Washer",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Login successful\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('access_token');",
+							"    pm.environment.set('washer_token', response.access_token);",
+							"    pm.environment.set('washer_user_id', response.user.user_id);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [{"key": "Content-Type", "value": "application/json"}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"washer@blingauto.com\",\n  \"password\": \"WasherPass123!\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/auth/login",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "auth", "login"]
+				}
+			}
+		},
+		{
+			"name": "1. Create Walk-in Service",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-in created successfully\", function() {",
+							"    pm.response.to.have.status(201);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('id');",
+							"    pm.expect(response).to.have.property('service_number');",
+							"    pm.expect(response.service_number).to.match(/^WI-\\d{8}-\\d{3}$/);",
+							"    pm.expect(response.status).to.equal('in_progress');",
+							"    pm.expect(response.payment_status).to.equal('pending');",
+							"    pm.expect(response.services).to.be.an('array').that.is.empty;",
+							"    pm.environment.set('walkin_id', response.id);",
+							"    pm.environment.set('walkin_service_number', response.service_number);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customer_name\": \"John Doe\",\n  \"customer_phone\": \"555-1234\",\n  \"vehicle_make\": \"Toyota\",\n  \"vehicle_model\": \"Camry\",\n  \"vehicle_color\": \"Blue\",\n  \"vehicle_size\": \"standard\",\n  \"license_plate\": \"ABC123\",\n  \"notes\": \"Regular customer\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins"]
+				}
+			}
+		},
+		{
+			"name": "2. Get Walk-in by ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-in retrieved successfully\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.id).to.equal(pm.environment.get('walkin_id'));",
+							"    pm.expect(response.vehicle_make).to.equal('Toyota');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}"]
+				}
+			}
+		},
+		{
+			"name": "3. Add Service - Basic Wash",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Service added successfully\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.services).to.have.lengthOf(1);",
+							"    pm.expect(response.services[0].service_name).to.equal('Basic Wash');",
+							"    pm.expect(parseFloat(response.total_amount)).to.equal(25.00);",
+							"    pm.expect(parseFloat(response.final_amount)).to.equal(25.00);",
+							"    pm.environment.set('service_item_id', response.services[0].id);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"service_id\": \"{{service_basic_wash_id}}\",\n  \"service_name\": \"Basic Wash\",\n  \"price\": 25.00,\n  \"product_costs\": 5.00,\n  \"quantity\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/services",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "services"]
+				}
+			}
+		},
+		{
+			"name": "4. Add Service - Wax & Polish",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Second service added\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.services).to.have.lengthOf(2);",
+							"    pm.expect(parseFloat(response.total_amount)).to.equal(75.00);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"service_id\": \"{{service_wax_id}}\",\n  \"service_name\": \"Wax & Polish\",\n  \"price\": 50.00,\n  \"product_costs\": 10.00,\n  \"quantity\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/services",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "services"]
+				}
+			}
+		},
+		{
+			"name": "5. Setup - Login as Manager",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Manager login successful\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.environment.set('manager_token', response.access_token);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [{"key": "Content-Type", "value": "application/json"}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"manager@blingauto.com\",\n  \"password\": \"ManagerPass123!\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/auth/login",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "auth", "login"]
+				}
+			}
+		},
+		{
+			"name": "6. Apply Discount - 10%",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Discount applied successfully\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(parseFloat(response.discount_amount)).to.equal(7.50);",
+							"    pm.expect(parseFloat(response.final_amount)).to.equal(67.50);",
+							"    pm.expect(response.discount_reason).to.equal('Loyal customer');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"discount_percent\": 10,\n  \"discount_reason\": \"Loyal customer\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/discount",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "discount"]
+				}
+			}
+		},
+		{
+			"name": "7. Record Payment - Cash",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Payment recorded\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(parseFloat(response.paid_amount)).to.equal(67.50);",
+							"    pm.expect(response.payment_status).to.equal('paid');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"amount\": 67.50,\n  \"payment_method\": \"cash\",\n  \"transaction_reference\": \"CASH-001\",\n  \"notes\": \"Paid in full\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/payments",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "payments"]
+				}
+			}
+		},
+		{
+			"name": "8. Complete Walk-in",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-in completed\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.status).to.equal('completed');",
+							"    pm.expect(response.completed_at).to.not.be.null;",
+							"    pm.expect(response.completed_by_id).to.equal(pm.environment.get('washer_user_id'));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/complete",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "complete"]
+				}
+			}
+		},
+		{
+			"name": "9. List All Walk-ins",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-ins listed\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('items');",
+							"    pm.expect(response).to.have.property('total');",
+							"    pm.expect(response.items).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins?limit=20&offset=0",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins"],
+					"query": [
+						{"key": "limit", "value": "20"},
+						{"key": "offset", "value": "0"}
+					]
+				}
+			}
+		},
+		{
+			"name": "10. Get Daily Report",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Daily report retrieved\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('total_services');",
+							"    pm.expect(response).to.have.property('total_revenue');",
+							"    pm.expect(response).to.have.property('total_profit');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/reports/daily/{{$isoTimestamp}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "reports", "daily", "{{$isoTimestamp}}"]
+				}
+			}
+		},
+		{
+			"name": "11. Remove Service from Walk-in",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Service removed successfully\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.services).to.have.lengthOf(1);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/services/{{service_item_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "services", "{{service_item_id}}"]
+				}
+			}
+		},
+		{
+			"name": "12. Create Walk-in - Card Payment",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-in created for card payment\", function() {",
+							"    pm.response.to.have.status(201);",
+							"    const response = pm.response.json();",
+							"    pm.environment.set('card_walkin_id', response.id);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"customer_name\": \"Jane Smith\",\n  \"customer_phone\": \"555-5678\",\n  \"vehicle_make\": \"Honda\",\n  \"vehicle_model\": \"Civic\",\n  \"vehicle_color\": \"Red\",\n  \"vehicle_size\": \"compact\",\n  \"license_plate\": \"XYZ789\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins"]
+				}
+			}
+		},
+		{
+			"name": "13. Add Service to Card Payment Walk-in",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Service added\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"service_id\": \"{{service_basic_wash_id}}\",\n  \"service_name\": \"Basic Wash\",\n  \"price\": 25.00,\n  \"product_costs\": 5.00,\n  \"quantity\": 1\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{card_walkin_id}}/services",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{card_walkin_id}}", "services"]
+				}
+			}
+		},
+		{
+			"name": "14. Record Payment - Credit Card",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Card payment recorded\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.payment_method).to.equal('credit_card');",
+							"    pm.expect(response.payment_status).to.equal('paid');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"amount\": 25.00,\n  \"payment_method\": \"credit_card\",\n  \"transaction_reference\": \"CARD-TX-001\",\n  \"notes\": \"Visa ending 4242\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{card_walkin_id}}/payments",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{card_walkin_id}}", "payments"]
+				}
+			}
+		},
+		{
+			"name": "15. Cancel Walk-in",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-in cancelled\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.status).to.equal('cancelled');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"reason\": \"Customer changed mind\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{card_walkin_id}}/cancel",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{card_walkin_id}}", "cancel"]
+				}
+			}
+		},
+		{
+			"name": "16. Filter Walk-ins by Status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-ins filtered by status\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.items).to.be.an('array');",
+							"    response.items.forEach(item => {",
+							"        pm.expect(item.status).to.equal('completed');",
+							"    });",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins?status=completed",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins"],
+					"query": [{"key": "status", "value": "completed"}]
+				}
+			}
+		},
+		{
+			"name": "17. Filter Walk-ins by Date Range",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const today = new Date();",
+							"const yesterday = new Date(today);",
+							"yesterday.setDate(today.getDate() - 1);",
+							"pm.environment.set('walkin_start_date', yesterday.toISOString().split('T')[0]);",
+							"pm.environment.set('walkin_end_date', today.toISOString().split('T')[0]);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Walk-ins filtered by date\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.items).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins?start_date={{walkin_start_date}}&end_date={{walkin_end_date}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins"],
+					"query": [
+						{"key": "start_date", "value": "{{walkin_start_date}}"},
+						{"key": "end_date", "value": "{{walkin_end_date}}"}
+					]
+				}
+			}
+		},
+		{
+			"name": "18. Get Monthly Report",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const today = new Date();",
+							"const year = today.getFullYear();",
+							"const month = String(today.getMonth() + 1).padStart(2, '0');",
+							"pm.environment.set('report_year', year);",
+							"pm.environment.set('report_month', month);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Monthly report retrieved\", function() {",
+							"    pm.response.to.have.status(200);",
+							"    const response = pm.response.json();",
+							"    pm.expect(response).to.have.property('total_services');",
+							"    pm.expect(response).to.have.property('total_revenue');",
+							"    pm.expect(response).to.have.property('average_service_value');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/reports/monthly/{{report_year}}/{{report_month}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "reports", "monthly", "{{report_year}}", "{{report_month}}"]
+				}
+			}
+		},
+		{
+			"name": "19. Apply Invalid Discount (✗ Error)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Invalid discount rejected (400)\", function() {",
+							"    pm.response.to.have.status(400);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{"key": "Content-Type", "value": "application/json"},
+					{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"discount_percent\": 150,\n  \"discount_reason\": \"Too high\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}/discount",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}", "discount"]
+				}
+			}
+		},
+		{
+			"name": "20. Client Access Walk-in (✗ Forbidden)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Client cannot access walk-ins (403)\", function() {",
+							"    pm.response.to.have.status(403);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+				"url": {
+					"raw": "{{base_url}}/api/v1/walkins/{{walkin_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "walkins", "{{walkin_id}}"]
+				}
+			}
+		}
+	]
+}

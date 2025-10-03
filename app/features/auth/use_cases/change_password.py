@@ -45,11 +45,11 @@ class ChangePasswordUseCase:
         self._password_hasher = password_hasher
         self._cache_service = cache_service
 
-    def execute(self, request: ChangePasswordRequest) -> ChangePasswordResponse:
+    async def execute(self, request: ChangePasswordRequest) -> ChangePasswordResponse:
         """Execute the change password use case."""
 
         # Step 1: Retrieve user
-        user = self._user_repository.get_by_id(request.user_id)
+        user = await self._user_repository.get_by_id(request.user_id)
         if not user:
             raise UnauthorizedError("User not found")
 
@@ -69,7 +69,7 @@ class ChangePasswordUseCase:
 
         # Step 5: Update user password
         user.hashed_password = new_hashed_password
-        self._user_repository.update(user)
+        await self._user_repository.update(user)
 
         # Step 6: Invalidate all user sessions (security best practice)
         self._cache_service.invalidate_user_sessions(request.user_id)

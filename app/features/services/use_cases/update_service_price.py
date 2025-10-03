@@ -71,16 +71,8 @@ class UpdateServicePriceUseCase:
         old_price = service.price
         price_change = request.new_price - old_price
         price_change_percent = (price_change / old_price * 100) if old_price > 0 else Decimal('0')
-        
-        # Step 5: Check for significant price increase
-        if price_change_percent > 20:
-            # Business rule: Significant price increases require additional validation
-            if not request.updated_by.startswith("admin_"):
-                raise BusinessRuleViolationError(
-                    "Price increases over 20% require admin approval"
-                )
-        
-        # Step 6: Update service price
+
+        # Step 5: Update service price (no restriction on price increase percentage)
         service.update_pricing(request.new_price)
         
         # Step 7: Save updated service

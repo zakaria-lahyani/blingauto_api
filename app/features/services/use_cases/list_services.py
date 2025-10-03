@@ -63,31 +63,31 @@ class ListServicesUseCase:
         self._category_repository = category_repository
         self._cache_service = cache_service
     
-    def execute(self, request: ListServicesRequest) -> ListServicesResponse:
+    async def execute(self, request: ListServicesRequest) -> ListServicesResponse:
         """Execute the list services use case."""
-        
+
         # Step 1: Validate pagination parameters
         if request.page < 1:
             raise ValidationError("Page must be greater than 0")
         if request.limit < 1 or request.limit > 100:
             raise ValidationError("Limit must be between 1 and 100")
-        
+
         # Step 2: Calculate offset
         offset = (request.page - 1) * request.limit
-        
+
         # Step 3: Try to get from cache for common queries
         cached_services = None
-        if (request.popular_only and not request.category_id and 
+        if (request.popular_only and not request.category_id and
             not request.search_query and request.page == 1):
-            cached_services = self._cache_service.get_popular_services()
-        elif (request.category_id and not request.search_query and 
+            cached_services = await self._cache_service.get_popular_services()
+        elif (request.category_id and not request.search_query and
               not request.popular_only and request.page == 1):
-            cached_services = self._cache_service.get_category_services(
+            cached_services = await self._cache_service.get_category_services(
                 request.category_id
             )
-        
+
         services = []
-        
+
         if cached_services is not None:
             # Use cached data
             services = cached_services
@@ -97,19 +97,19 @@ class ListServicesUseCase:
             # Step 4: Query services based on filters
             if request.search_query:
                 # Search services
-                services = self._service_repository.search_services(
+                services = await self._service_repository.search_services(
                     request.search_query,
                     category_id=request.category_id,
                     limit=request.limit * 2,  # Get more for filtering
                 )
             elif request.popular_only:
                 # Get popular services
-                services = self._service_repository.list_popular(limit=50)
+                services = await self._service_repository.list_popular(limit=50)
                 if request.category_id:
                     services = [s for s in services if s.category_id == request.category_id]
             elif request.min_price is not None and request.max_price is not None:
                 # Filter by price range
-                services = self._service_repository.list_by_price_range(
+                services = await self._service_repository.list_by_price_range(
                     request.min_price,
                     request.max_price,
                     category_id=request.category_id,
@@ -117,7 +117,7 @@ class ListServicesUseCase:
                 )
             elif request.min_duration is not None and request.max_duration is not None:
                 # Filter by duration range
-                services = self._service_repository.list_by_duration_range(
+                services = await self._service_repository.list_by_duration_range(
                     request.min_duration,
                     request.max_duration,
                     category_id=request.category_id,
@@ -125,7 +125,7 @@ class ListServicesUseCase:
                 )
             elif request.category_id:
                 # List by category
-                services = self._service_repository.list_by_category(
+                services = await self._service_repository.list_by_category(
                     request.category_id,
                     include_inactive=request.include_inactive,
                     offset=offset,
@@ -133,7 +133,7 @@ class ListServicesUseCase:
                 )
             else:
                 # List all services
-                services = self._service_repository.list_all(
+                services = await self._service_repository.list_all(
                     include_inactive=request.include_inactive,
                     offset=offset,
                     limit=request.limit,
@@ -160,7 +160,7 @@ class ListServicesUseCase:
         category_map = {}
         for service in services:
             if service.category_id not in category_map:
-                category = self._category_repository.get_by_id(service.category_id)
+                category = await self._category_repository.get_by_id(service.category_id)
                 if category:
                     category_map[service.category_id] = category.name
         
@@ -174,7 +174,7 @@ class ListServicesUseCase:
                 description=service.description,
                 price=service.price,
                 duration_minutes=service.duration_minutes,
-                status=service.status.value,
+                status=service.status.value if hasattr(service.status, 'value') else service.status,
                 is_popular=service.is_popular,
                 price_display=service.price_display,
                 duration_display=service.duration_display,

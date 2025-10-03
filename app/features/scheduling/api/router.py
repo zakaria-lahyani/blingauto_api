@@ -187,7 +187,7 @@ async def list_resources(
 @router.post("/book-slot", response_model=BookingSlotResponse)
 async def book_time_slot(
     request: BookingSlotRequest,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser,
     use_case: BookSlotUseCase = Depends(get_book_slot_use_case),
 ):
     """
@@ -232,7 +232,7 @@ async def book_time_slot(
 @router.delete("/book-slot/{slot_id}")
 async def cancel_time_slot(
     slot_id: str,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser,
     use_case: CancelSlotUseCase = Depends(get_cancel_slot_use_case),
 ):
     """

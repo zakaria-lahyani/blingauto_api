@@ -1,0 +1,1043 @@
+{
+	"info": {
+		"_postman_id": "bookings-management",
+		"name": "06 - Bookings Management Complete Testing",
+		"description": "Comprehensive booking lifecycle testing - States, Transitions, Modifications, Ratings",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Booking Lifecycle",
+			"item": [
+				{
+					"name": "Create Booking - Customer",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Set scheduled time to tomorrow at 10 AM",
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(10, 0, 0, 0);",
+									"pm.environment.set('booking_scheduled_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking created (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('booking_id');",
+									"    pm.expect(response.status).to.equal('pending');",
+									"    pm.expect(response).to.have.property('total_amount');",
+									"    pm.environment.set('test_booking_id', response.booking_id);",
+									"    console.log('✓ Booking created:', response.booking_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\"],\n  \"scheduled_at\": \"{{booking_scheduled_time}}\",\n  \"booking_type\": \"scheduled\",\n  \"notes\": \"Please be thorough\",\n  \"phone_number\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Get Booking by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.booking_id).to.equal(pm.environment.get('test_booking_id'));",
+									"    pm.expect(response).to.have.property('customer');",
+									"    pm.expect(response).to.have.property('services');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}"]
+						}
+					}
+				},
+				{
+					"name": "List Bookings - Customer Own Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Customer bookings listed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.bookings).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"    pm.expect(response).to.have.property('page');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"}
+							]
+						}
+					}
+				},
+				{
+					"name": "List Bookings - Admin All",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin sees all bookings (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Confirm Booking - Staff",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking confirmed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('confirmed');",
+									"    pm.expect(response).to.have.property('confirmed_at');",
+									"    pm.expect(response).to.have.property('confirmed_by');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Confirmed by washer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}/confirm",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}", "confirm"]
+						}
+					}
+				},
+				{
+					"name": "Start Booking - Staff",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking started (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('in_progress');",
+									"    pm.expect(response).to.have.property('started_at');",
+									"    pm.expect(response).to.have.property('started_by');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}/start",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}", "start"]
+						}
+					}
+				},
+				{
+					"name": "Complete Booking - Staff",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Set actual end time to now",
+									"pm.environment.set('booking_actual_end', new Date().toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking completed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('completed');",
+									"    pm.expect(response).to.have.property('completed_at');",
+									"    pm.expect(response).to.have.property('final_amount');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"actual_end_time\": \"{{booking_actual_end}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}", "complete"]
+						}
+					}
+				},
+				{
+					"name": "Rate Booking - Customer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking rated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.rating).to.equal(5);",
+									"    pm.expect(response).to.have.property('feedback');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 5,\n  \"feedback\": \"Excellent service! Very thorough and professional.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}/rate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}", "rate"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Booking Modifications",
+			"item": [
+				{
+					"name": "Setup - Create Booking for Modifications",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(14, 0, 0, 0);",
+									"pm.environment.set('modify_booking_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Modify test booking created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    pm.environment.set('modify_booking_id', pm.response.json().booking_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\"],\n  \"scheduled_at\": \"{{modify_booking_time}}\",\n  \"booking_type\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Add Services to Booking",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Services added (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.services.length).to.be.greaterThan(1);",
+									"    pm.expect(response).to.have.property('total_amount');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service_ids\": [\"{{service_premium_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{modify_booking_id}}/services",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{modify_booking_id}}", "services"]
+						}
+					}
+				},
+				{
+					"name": "Reschedule Booking",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const newTime = new Date();",
+									"newTime.setDate(newTime.getDate() + 2);",
+									"newTime.setHours(15, 0, 0, 0);",
+									"pm.environment.set('new_booking_time', newTime.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking rescheduled (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('new_scheduled_at');",
+									"    pm.expect(response).to.have.property('rescheduled_at');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"new_scheduled_at\": \"{{new_booking_time}}\",\n  \"reason\": \"Schedule conflict\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{modify_booking_id}}/reschedule",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{modify_booking_id}}", "reschedule"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Booking",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking cancelled (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.equal('cancelled');",
+									"    pm.expect(response).to.have.property('cancelled_at');",
+									"    pm.expect(response).to.have.property('cancellation_reason');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Customer request - no longer needed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{modify_booking_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{modify_booking_id}}", "cancel"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Payment Integration",
+			"item": [
+				{
+					"name": "Setup - Create Booking for Payment",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(11, 0, 0, 0);",
+									"pm.environment.set('payment_booking_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Payment test booking created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('payment_booking_id', response.booking_id);",
+									"    pm.environment.set('booking_total_amount', response.total_amount);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\", \"{{service_premium_id}}\"],\n  \"scheduled_at\": \"{{payment_booking_time}}\",\n  \"booking_type\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Confirm and Start Booking",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking started for payment test\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{payment_booking_id}}/start",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{payment_booking_id}}", "start"]
+						}
+					}
+				},
+				{
+					"name": "Complete and Record Payment - Cash",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Booking completed with payment (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.payment_status).to.equal('paid');",
+									"    pm.expect(response).to.have.property('paid_amount');",
+									"    pm.expect(response.payment_method).to.equal('cash');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"payment_method\": \"cash\",\n  \"payment_amount\": \"{{booking_total_amount}}\",\n  \"transaction_id\": \"CASH-TX-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{payment_booking_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{payment_booking_id}}", "complete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Advanced Filters & Search",
+			"item": [
+				{
+					"name": "List Bookings - Filter by Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bookings filtered by status (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.bookings).to.be.an('array');",
+									"    response.bookings.forEach(booking => {",
+									"        pm.expect(booking.status).to.equal('completed');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings?status=completed",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"],
+							"query": [{"key": "status", "value": "completed"}]
+						}
+					}
+				},
+				{
+					"name": "List Bookings - Date Range Filter",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const weekAgo = new Date(today);",
+									"weekAgo.setDate(today.getDate() - 7);",
+									"pm.environment.set('search_start_date', weekAgo.toISOString().split('T')[0]);",
+									"pm.environment.set('search_end_date', today.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bookings filtered by date range (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.bookings).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings?start_date={{search_start_date}}&end_date={{search_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"],
+							"query": [
+								{"key": "start_date", "value": "{{search_start_date}}"},
+								{"key": "end_date", "value": "{{search_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "List Bookings - By Service Type",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bookings filtered by service (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings?service_id={{service_basic_wash_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"],
+							"query": [{"key": "service_id", "value": "{{service_basic_wash_id}}"}]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "State Transition Edge Cases",
+			"item": [
+				{
+					"name": "Setup - Create Booking for State Tests",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(16, 0, 0, 0);",
+									"pm.environment.set('state_test_booking_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"State test booking created\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    pm.environment.set('state_test_booking_id', pm.response.json().booking_id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\"],\n  \"scheduled_at\": \"{{state_test_booking_time}}\",\n  \"booking_type\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Start Without Confirm (✗ Invalid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot start unconfirmed booking (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{state_test_booking_id}}/start",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{state_test_booking_id}}", "start"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Completed Booking (✗ Invalid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot cancel completed booking (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Changed my mind\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}", "cancel"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "RBAC - Booking Access Control",
+			"item": [
+				{
+					"name": "Client - View Other Customer's Booking (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client cannot view other bookings (403/404)\", function() {",
+									"    pm.response.to.be.oneOf([403, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{payment_booking_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{payment_booking_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Washer - Confirm Booking (✓)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer can confirm bookings (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Confirmed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{state_test_booking_id}}/confirm",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{state_test_booking_id}}", "confirm"]
+						}
+					}
+				},
+				{
+					"name": "Client - Modify Booking Service (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client can only modify their own bookings (403/404)\", function() {",
+									"    pm.response.to.be.oneOf([200, 403, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service_ids\": [\"{{service_premium_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{state_test_booking_id}}/services",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{state_test_booking_id}}", "services"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Edge Cases",
+			"item": [
+				{
+					"name": "Create Booking - Past Date (✗ Invalid)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const yesterday = new Date();",
+									"yesterday.setDate(yesterday.getDate() - 1);",
+									"pm.environment.set('past_booking_time', yesterday.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot book in the past (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [\"{{service_basic_wash_id}}\"],\n  \"scheduled_at\": \"{{past_booking_time}}\",\n  \"booking_type\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Create Booking - Empty Services (✗ Invalid)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const tomorrow = new Date();",
+									"tomorrow.setDate(tomorrow.getDate() + 1);",
+									"tomorrow.setHours(12, 0, 0, 0);",
+									"pm.environment.set('empty_service_booking_time', tomorrow.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot book without services (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{client_user_id}}\",\n  \"vehicle_id\": \"{{client_vehicle_id}}\",\n  \"service_ids\": [],\n  \"scheduled_at\": \"{{empty_service_booking_time}}\",\n  \"booking_type\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Rate Booking - Invalid Rating Value (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid rating rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 10,\n  \"feedback\": \"Invalid rating\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{payment_booking_id}}/rate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{payment_booking_id}}", "rate"]
+						}
+					}
+				},
+				{
+					"name": "Rate Booking - Duplicate Rating (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Duplicate rating rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 4,\n  \"feedback\": \"Trying to rate again\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{test_booking_id}}/rate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{test_booking_id}}", "rate"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

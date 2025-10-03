@@ -19,19 +19,19 @@ from ..use_cases import (
     UpdateMobileTeamUseCase,
     DeleteMobileTeamUseCase
 )
-from app.core.db import get_db_session
+from app.core.db import get_db
 
 
 # Repository providers
 async def get_wash_bay_repository(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db)
 ) -> IWashBayRepository:
     """Provide wash bay repository instance."""
     return SQLAlchemyWashBayRepository(session)
 
 
 async def get_mobile_team_repository(
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db)
 ) -> IMobileTeamRepository:
     """Provide mobile team repository instance."""
     return SQLAlchemyMobileTeamRepository(session)

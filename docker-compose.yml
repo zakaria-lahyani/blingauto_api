@@ -55,6 +55,22 @@ services:
       retries: 5
       start_period: 10s
 
+  # MailHog - Fake SMTP server for testing (catches all emails)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: blingauto-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - blingauto-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # BlingAuto API
   api:
     build:
@@ -158,6 +174,15 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-blingauto_user}:${POSTGRES_PASSWORD:-change_this_password}@postgres:5432/${POSTGRES_DB:-blingauto}
+
+      # Security (needed for password hashing)
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here-change-in-production}
+
+      # Initial Admin User (optional)
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_FIRST_NAME: ${INITIAL_ADMIN_FIRST_NAME:-Admin}
+      INITIAL_ADMIN_LAST_NAME: ${INITIAL_ADMIN_LAST_NAME:-User}
     entrypoint: ["/app/scripts/docker-entrypoint-migrations.sh"]
     networks:
       - blingauto-network

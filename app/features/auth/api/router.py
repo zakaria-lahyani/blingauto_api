@@ -24,7 +24,7 @@ from app.features.auth.api.schemas import (
     UpdateProfileResponse,
     LogoutResponse,
 )
-from app.features.auth.api.dependencies import CurrentUser, AdminUser
+from app.features.auth.api.dependencies import CurrentUser, AdminUser, StaffUser, ManagerUser
 from app.features.auth.domain import User, UserRole
 from app.features.auth.use_cases import (
     RegisterUserUseCase,
@@ -157,13 +157,19 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
 
         response = await use_case.execute(use_case_request)
 
+        from app.core.config.settings import settings
+        from app.features.auth.api.schemas import UserInfo
+
         return LoginResponse(
             access_token=response.access_token,
             refresh_token=response.refresh_token,
-            user_id=response.user_id,
-            email=response.email,
-            full_name=response.full_name,
-            role=response.role,
+            expires_in=settings.access_token_expire_minutes * 60,
+            user=UserInfo(
+                user_id=response.user_id,
+                email=response.email,
+                full_name=response.full_name,
+                role=response.role,
+            ),
         )
 
 
@@ -218,27 +224,28 @@ async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db
 
 
 @router.post("/request-password-reset", response_model=MessageResponse)
+@router.post("/forgot-password", response_model=MessageResponse)  # Alias for Postman compatibility
 async def request_password_reset(
-    request: RequestPasswordResetRequest, 
+    request: RequestPasswordResetRequest,
     db: Session = Depends(get_db)
 ):
     """
     Request password reset for user account.
-    
+
     Sends password reset email if the email address exists.
     """
     async with UnitOfWork() as uow:
         deps = get_use_case_dependencies(uow.session)
-        
+
         use_case = RequestPasswordResetUseCase(
             user_repository=deps["user_repo"],
             token_repository=deps["password_reset_repo"],
             email_service=deps["email_service"],
         )
-        
+
         use_case_request = RequestPasswordResetUseCaseRequest(email=request.email)
         response = await use_case.execute(use_case_request)
-        
+
         return MessageResponse(message=response.message)
 
 
@@ -296,13 +303,13 @@ async def list_users(
     limit: int = Query(20, ge=1, le=100, description="Limit for pagination"),
     role: Optional[str] = Query(None, description="Filter by role"),
     status: Optional[str] = Query(None, description="Filter by status"),
-    current_user: User = AdminUser,
+    current_user: User = ManagerUser,
     db: Session = Depends(get_db)
 ):
     """
     List all users with pagination and filters.
-    
-    Admin only endpoint to list all users in the system.
+
+    Manager/Admin endpoint to list all users in the system.
     """
     deps = get_use_case_dependencies(db)
     
@@ -316,7 +323,7 @@ async def list_users(
     )
     
     response = await use_case.execute(use_case_request)
-    
+
     return UserListResponse(
         users=[UserResponse(**user.__dict__) for user in response.users],
         total=response.total,
@@ -407,7 +414,7 @@ async def change_password(
             new_password=request.new_password,
         )
 
-        response = use_case.execute(use_case_request)
+        response = await use_case.execute(use_case_request)
 
         return ChangePasswordResponse(
             success=response.success,
@@ -486,7 +493,7 @@ async def logout(
             token=token,
         )
 
-        response = use_case.execute(use_case_request)
+        response = await use_case.execute(use_case_request)
 
         return LogoutResponse(
             success=response.success,

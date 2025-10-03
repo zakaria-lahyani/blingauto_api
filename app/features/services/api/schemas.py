@@ -19,7 +19,6 @@ class CreateCategorySchema(BaseModel):
 
 class CreateServiceSchema(BaseModel):
     """Schema for creating a new service."""
-    category_id: str = Field(..., description="Category ID")
     name: str = Field(..., min_length=1, max_length=100, description="Service name")
     description: str = Field("", max_length=1000, description="Service description")
     price: Decimal = Field(..., gt=0, le=10000, description="Service price")

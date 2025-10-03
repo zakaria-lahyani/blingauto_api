@@ -1,0 +1,694 @@
+{
+	"info": {
+		"_postman_id": "analytics-reports",
+		"name": "07 - Analytics & Reports Complete Testing",
+		"description": "Comprehensive analytics and business intelligence testing - Revenue, Staff, Customer, Financial KPIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Revenue Analytics",
+			"item": [
+				{
+					"name": "Get Revenue Metrics - Date Range",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const monthAgo = new Date(today);",
+									"monthAgo.setDate(today.getDate() - 30);",
+									"pm.environment.set('analytics_start_date', monthAgo.toISOString().split('T')[0]);",
+									"pm.environment.set('analytics_end_date', today.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Revenue metrics retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('total_revenue');",
+									"    pm.expect(response).to.have.property('revenue_by_source');",
+									"    pm.expect(response).to.have.property('total_bookings');",
+									"    pm.expect(response).to.have.property('average_transaction_value');",
+									"    pm.expect(response).to.have.property('growth_rate');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/revenue/metrics?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "revenue", "metrics"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Daily Revenue Breakdown",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Daily revenue retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total_days');",
+									"    if (response.items.length > 0) {",
+									"        const day = response.items[0];",
+									"        pm.expect(day).to.have.property('date');",
+									"        pm.expect(day).to.have.property('revenue');",
+									"        pm.expect(day).to.have.property('bookings_count');",
+									"        pm.expect(day).to.have.property('walkins_count');",
+									"        pm.expect(day).to.have.property('average_value');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/revenue/daily?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "revenue", "daily"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Revenue Metrics - Manager Access (✓)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can access revenue (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/revenue/metrics?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "revenue", "metrics"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Revenue Metrics - Client Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client cannot access revenue (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/revenue/metrics?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "revenue", "metrics"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Staff Performance Analytics",
+			"item": [
+				{
+					"name": "Get Staff Performance Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Staff performance retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('staff_id');",
+									"    pm.expect(response).to.have.property('staff_name');",
+									"    pm.expect(response).to.have.property('total_services_completed');",
+									"    pm.expect(response).to.have.property('total_revenue_generated');",
+									"    pm.expect(response).to.have.property('average_service_rating');",
+									"    pm.expect(response).to.have.property('total_hours_worked');",
+									"    pm.expect(response).to.have.property('attendance_rate');",
+									"    pm.expect(response).to.have.property('productivity_score');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/staff/{{washer_user_id}}/performance?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "staff", "{{washer_user_id}}", "performance"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Staff Leaderboard",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Leaderboard retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('period_start');",
+									"    pm.expect(response).to.have.property('period_end');",
+									"    pm.expect(response).to.have.property('top_by_revenue');",
+									"    pm.expect(response).to.have.property('top_by_services');",
+									"    pm.expect(response).to.have.property('top_by_rating');",
+									"    pm.expect(response.top_by_revenue).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/staff/leaderboard?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "staff", "leaderboard"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"},
+								{"key": "limit", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Staff Performance - Invalid Staff ID (✗)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid staff ID rejected (404)\", function() {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/staff/invalid-staff-id/performance?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "staff", "invalid-staff-id", "performance"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Customer Analytics",
+			"item": [
+				{
+					"name": "Get Customer Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Customer metrics retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('total_customers');",
+									"    pm.expect(response).to.have.property('new_customers');",
+									"    pm.expect(response).to.have.property('returning_customers');",
+									"    pm.expect(response).to.have.property('customer_retention_rate');",
+									"    pm.expect(response).to.have.property('average_customer_lifetime_value');",
+									"    pm.expect(response).to.have.property('customers_by_segment');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/customers/metrics?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "customers", "metrics"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Customer Behavior Analysis",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Customer behavior retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('customer_id');",
+									"    pm.expect(response).to.have.property('total_bookings');",
+									"    pm.expect(response).to.have.property('total_spent');",
+									"    pm.expect(response).to.have.property('average_booking_value');",
+									"    pm.expect(response).to.have.property('favorite_services');",
+									"    pm.expect(response).to.have.property('preferred_booking_time');",
+									"    pm.expect(response).to.have.property('days_since_last_booking');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/customers/{{client_user_id}}/behavior",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "customers", "{{client_user_id}}", "behavior"]
+						}
+					}
+				},
+				{
+					"name": "Customer Behavior - No Data (✗ 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"No behavior data returns 404\", function() {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/customers/nonexistent-customer/behavior",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "customers", "nonexistent-customer", "behavior"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Financial Analytics",
+			"item": [
+				{
+					"name": "Get Financial KPIs - Admin Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Financial KPIs retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('total_revenue');",
+									"    pm.expect(response).to.have.property('total_expenses');",
+									"    pm.expect(response).to.have.property('gross_profit');",
+									"    pm.expect(response).to.have.property('net_profit');",
+									"    pm.expect(response).to.have.property('profit_margin');",
+									"    pm.expect(response).to.have.property('operating_expenses');",
+									"    pm.expect(response).to.have.property('cost_of_goods_sold');",
+									"    pm.expect(response).to.have.property('revenue_per_booking');",
+									"    pm.expect(response).to.have.property('expenses_per_booking');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/financial/kpis?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "financial", "kpis"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Financial KPIs - Manager Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot access financial KPIs (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/financial/kpis?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "financial", "kpis"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Service Analytics",
+			"item": [
+				{
+					"name": "Get Service Popularity Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Service popularity retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.items).to.be.an('array');",
+									"    pm.expect(response).to.have.property('total');",
+									"    if (response.items.length > 0) {",
+									"        const service = response.items[0];",
+									"        pm.expect(service).to.have.property('service_id');",
+									"        pm.expect(service).to.have.property('service_name');",
+									"        pm.expect(service).to.have.property('total_bookings');",
+									"        pm.expect(service).to.have.property('total_revenue');",
+									"        pm.expect(service).to.have.property('average_rating');",
+									"        pm.expect(service).to.have.property('completion_rate');",
+									"        pm.expect(service).to.have.property('cancellation_rate');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/services/popularity?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "services", "popularity"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard Summary",
+			"item": [
+				{
+					"name": "Get Comprehensive Dashboard",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Dashboard summary retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('period_start');",
+									"    pm.expect(response).to.have.property('period_end');",
+									"    pm.expect(response).to.have.property('revenue_metrics');",
+									"    pm.expect(response).to.have.property('financial_kpis');",
+									"    pm.expect(response).to.have.property('customer_metrics');",
+									"    pm.expect(response).to.have.property('total_active_staff');",
+									"    pm.expect(response).to.have.property('total_completed_services');",
+									"    pm.expect(response).to.have.property('average_customer_satisfaction');",
+									"    pm.expect(response).to.have.property('top_performing_services');",
+									"    pm.expect(response).to.have.property('generated_at');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/dashboard?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "dashboard"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Dashboard - Manager Access (✓)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can access dashboard (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/dashboard?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "dashboard"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Dashboard - Washer Access (✗ Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot access dashboard (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/dashboard?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "dashboard"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Edge Cases & Validation",
+			"item": [
+				{
+					"name": "Invalid Date Range (✗ Error)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const today = new Date();",
+									"const tomorrow = new Date(today);",
+									"tomorrow.setDate(today.getDate() + 1);",
+									"pm.environment.set('invalid_start', tomorrow.toISOString().split('T')[0]);",
+									"pm.environment.set('invalid_end', today.toISOString().split('T')[0]);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid date range rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/revenue/metrics?start_date={{invalid_start}}&end_date={{invalid_end}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "revenue", "metrics"],
+							"query": [
+								{"key": "start_date", "value": "{{invalid_start}}"},
+								{"key": "end_date", "value": "{{invalid_end}}"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Missing Required Parameters (✗ 422)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Missing params rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/revenue/metrics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "revenue", "metrics"]
+						}
+					}
+				},
+				{
+					"name": "Leaderboard - Limit Too High (✗ 422)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Limit validation enforced (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/staff/leaderboard?start_date={{analytics_start_date}}&end_date={{analytics_end_date}}&limit=1000",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "staff", "leaderboard"],
+							"query": [
+								{"key": "start_date", "value": "{{analytics_start_date}}"},
+								{"key": "end_date", "value": "{{analytics_end_date}}"},
+								{"key": "limit", "value": "1000"}
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}

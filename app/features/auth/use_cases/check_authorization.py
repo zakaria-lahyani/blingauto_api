@@ -35,14 +35,28 @@ class CheckPermissionRequest:
 
 
 class CheckRoleUseCase:
-    """Use case for checking if user has required role."""
-    
+    """Use case for checking if user has required role with hierarchy support."""
+
+    # Role hierarchy: admin > manager > washer > client
+    ROLE_HIERARCHY = {
+        UserRole.ADMIN: 4,
+        UserRole.MANAGER: 3,
+        UserRole.WASHER: 2,
+        UserRole.CLIENT: 1,
+    }
+
+    def _has_role_or_higher(self, user_role: UserRole, required_role: UserRole) -> bool:
+        """Check if user has required role or higher in hierarchy."""
+        user_level = self.ROLE_HIERARCHY.get(user_role, 0)
+        required_level = self.ROLE_HIERARCHY.get(required_role, 0)
+        return user_level >= required_level
+
     async def execute(self, request: CheckRoleRequest) -> bool:
-        """Check if user has required role.
-        
+        """Check if user has required role (exact match only).
+
         Returns:
             True if user has required role
-            
+
         Raises:
             InsufficientPermissionError: If user doesn't have required role
         """
@@ -50,7 +64,7 @@ class CheckRoleUseCase:
             raise InsufficientPermissionError(
                 f"User role '{request.user.role.value}' does not match required role '{request.required_role.value}'"
             )
-        
+
         return True
 
 
@@ -95,22 +109,84 @@ class CheckPermissionUseCase:
 
 
 class CheckStaffUseCase:
-    """Use case for checking if user is staff (admin or washer)."""
-    
-    STAFF_ROLES = [UserRole.ADMIN, UserRole.WASHER]
-    
+    """Use case for checking if user is staff (admin, manager, or washer)."""
+
+    # Role hierarchy levels
+    ROLE_HIERARCHY = {
+        UserRole.ADMIN: 4,
+        UserRole.MANAGER: 3,
+        UserRole.WASHER: 2,
+        UserRole.CLIENT: 1,
+    }
+
     async def execute(self, user: User) -> bool:
-        """Check if user is staff.
-        
+        """Check if user is staff (washer or higher in hierarchy).
+
         Returns:
             True if user is staff
-            
+
         Raises:
             InsufficientPermissionError: If user is not staff
         """
-        if user.role not in self.STAFF_ROLES:
+        # Staff = washer level or higher (washer, manager, admin)
+        user_level = self.ROLE_HIERARCHY.get(user.role, 0)
+        staff_level = self.ROLE_HIERARCHY.get(UserRole.WASHER, 2)
+
+        if user_level < staff_level:
             raise InsufficientPermissionError(
                 "Staff access required"
             )
-        
+
+        return True
+
+
+class CheckManagerUseCase:
+    """Use case for checking if user is manager or higher (admin, manager)."""
+
+    # Role hierarchy levels
+    ROLE_HIERARCHY = {
+        UserRole.ADMIN: 4,
+        UserRole.MANAGER: 3,
+        UserRole.WASHER: 2,
+        UserRole.CLIENT: 1,
+    }
+
+    async def execute(self, user: User) -> bool:
+        """Check if user is manager or higher in hierarchy.
+
+        Returns:
+            True if user is manager or admin
+
+        Raises:
+            InsufficientPermissionError: If user is not manager or admin
+        """
+        # Manager level or higher (manager, admin)
+        user_level = self.ROLE_HIERARCHY.get(user.role, 0)
+        manager_level = self.ROLE_HIERARCHY.get(UserRole.MANAGER, 3)
+
+        if user_level < manager_level:
+            raise InsufficientPermissionError(
+                "Manager access required"
+            )
+
+        return True
+
+
+class CheckAdminUseCase:
+    """Use case for checking if user is admin (admin-only operations)."""
+
+    async def execute(self, user: User) -> bool:
+        """Check if user is admin.
+
+        Returns:
+            True if user is admin
+
+        Raises:
+            InsufficientPermissionError: If user is not admin
+        """
+        if user.role != UserRole.ADMIN:
+            raise InsufficientPermissionError(
+                "Admin access required"
+            )
+
         return True

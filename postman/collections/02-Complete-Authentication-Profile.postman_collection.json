@@ -1,0 +1,1862 @@
+{
+	"info": {
+		"_postman_id": "complete-auth-profile",
+		"name": "02 - Complete Authentication & Profile Management",
+		"description": "Comprehensive authentication flow, RBAC testing, and profile management scenarios",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication Flow",
+			"item": [
+				{
+					"name": "Register New User - Valid",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const timestamp = Date.now();",
+									"pm.environment.set('test_email', `testuser${timestamp}@example.com`);",
+									"pm.environment.set('test_password', 'SecurePass123!@#');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Registration successful (201)\", function() {",
+									"    pm.response.to.have.status(201);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('user_id');",
+									"    pm.expect(response).to.have.property('email');",
+									"    pm.expect(response).to.have.property('full_name');",
+									"    pm.environment.set('new_user_id', response.user_id);",
+									"    pm.environment.set('new_user_email', response.email);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"phone_number\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register - Duplicate Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Duplicate email rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register - Invalid Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid email rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"invalid-email\",\n  \"password\": \"SecurePass123!\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register - Weak Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Weak password rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"weakpass@example.com\",\n  \"password\": \"123\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login - Valid Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Login successful (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('access_token');",
+									"    pm.expect(response).to.have.property('refresh_token');",
+									"    pm.expect(response.token_type).to.equal('bearer');",
+									"    pm.expect(response.user).to.have.property('user_id');",
+									"    pm.expect(response.user).to.have.property('email');",
+									"    pm.expect(response.user).to.have.property('role');",
+									"    pm.environment.set('test_access_token', response.access_token);",
+									"    pm.environment.set('test_refresh_token', response.refresh_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Login - Invalid Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid password rejected (401)\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"WrongPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Login - Non-existent User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Non-existent user rejected (401)\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"nonexistent@example.com\",\n  \"password\": \"SomePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Get Current User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Profile retrieved (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.email).to.equal(pm.environment.get('test_email'));",
+									"    pm.expect(response).to.have.property('role');",
+									"    pm.expect(response).to.have.property('status');",
+									"    pm.expect(response).to.have.property('created_at');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{test_access_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Get Profile - No Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"No token rejected (401)\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Get Profile - Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid token rejected (401)\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer invalid.token.here"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Token refreshed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('access_token');",
+									"    pm.expect(response).to.have.property('refresh_token');",
+									"    pm.environment.set('test_access_token', response.access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refresh_token\": \"{{test_refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "refresh"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token - Invalid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid refresh token rejected (401)\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refresh_token\": \"invalid.refresh.token\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "refresh"]
+						}
+					}
+				},
+				{
+					"name": "Forgot Password - Valid Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Password reset requested (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "forgot-password"]
+						}
+					}
+				},
+				{
+					"name": "Forgot Password - Non-existent Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Returns success for security (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"nonexistent@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "forgot-password"]
+						}
+					}
+				},
+				{
+					"name": "Logout - Valid Session",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Logout successful (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{test_access_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "logout"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Profile Management",
+			"item": [
+				{
+					"name": "Setup - Re-login Test User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Re-login successful\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.environment.set('test_access_token', pm.response.json().access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Profile updated (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.first_name).to.equal('Updated');",
+									"    pm.expect(response.last_name).to.equal('Name');",
+									"    pm.expect(response.phone_number).to.equal('+9876543210');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{test_access_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Updated\",\n  \"last_name\": \"Name\",\n  \"phone_number\": \"+9876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile - Partial Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Partial update successful (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.first_name).to.equal('Partially');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{test_access_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Partially\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Change Password - Valid",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set('new_test_password', 'NewSecurePass456!@#');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Password changed (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.success).to.be.true;",
+									"    pm.expect(response.message).to.include('changed');",
+									"    pm.environment.set('test_password', pm.environment.get('new_test_password'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{test_access_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"current_password\": \"{{test_password}}\",\n  \"new_password\": \"{{new_test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "change-password"]
+						}
+					}
+				},
+				{
+					"name": "Change Password - Wrong Current",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Wrong current password rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{test_access_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"current_password\": \"WrongPassword123!\",\n  \"new_password\": \"NewSecurePass789!@#\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "change-password"]
+						}
+					}
+				},
+				{
+					"name": "Change Password - Weak New Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Weak new password rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{test_access_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"current_password\": \"{{test_password}}\",\n  \"new_password\": \"weak\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "change-password"]
+						}
+					}
+				},
+				{
+					"name": "Verify Login with New Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Login with new password successful (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.environment.set('test_access_token', pm.response.json().access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "RBAC Testing",
+			"item": [
+				{
+					"name": "Setup - Login as Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin login\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.environment.set('admin_token', pm.response.json().access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Login as Manager",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager login\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.environment.set('manager_token', pm.response.json().access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{manager_email}}\",\n  \"password\": \"{{manager_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Login as Washer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer login\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.environment.set('washer_token', pm.response.json().access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{washer_email}}\",\n  \"password\": \"{{washer_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Login as Client",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client login\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.environment.set('client_token', pm.response.json().access_token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Admin - List Users ✓",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin can list users (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.have.property('users');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Manager - List Users ✓",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager can list users (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Washer - List Users ✗ Forbidden",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot list users (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{washer_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Client - List Users ✗ Forbidden",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client cannot list users (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{client_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Admin - Get User by ID ✓",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin can get user (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.json()).to.have.property('id');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Manager - Get User by ID ✗ Forbidden",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot get user by ID (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Admin - Update User Role ✓",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin can update role (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('manager');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{new_user_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{new_user_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Manager - Update User Role ✗ Forbidden",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot update role (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"washer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{new_user_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{new_user_id}}", "role"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Role Promotion & Transition Tests",
+			"item": [
+				{
+					"name": "Setup - Get Client User for Manager Promotion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Got client user ID\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const users = pm.response.json().users;",
+									"    const clientUser = users.find(u => u.email === 'client.manager@blingauto.com');",
+									"    pm.expect(clientUser).to.exist;",
+									"    pm.environment.set('client_for_manager_id', clientUser.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Get Client User for Washer Promotion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Got client user ID\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const users = pm.response.json().users;",
+									"    const clientUser = users.find(u => u.email === 'client.washer@blingauto.com');",
+									"    pm.expect(clientUser).to.exist;",
+									"    pm.environment.set('client_for_washer_id', clientUser.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Setup - Get Client User for Admin Promotion Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Got client user ID\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const users = pm.response.json().users;",
+									"    const clientUser = users.find(u => u.email === 'client.admin@blingauto.com');",
+									"    pm.expect(clientUser).to.exist;",
+									"    pm.environment.set('client_for_admin_id', clientUser.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✓ Promote Client → Washer (Valid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin promoted client to washer (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('washer');",
+									"    pm.expect(response.email).to.equal('client.washer@blingauto.com');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"washer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_washer_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_washer_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✓ Promote Washer → Manager (Valid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin promoted washer to manager (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('manager');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_washer_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_washer_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✓ Promote Manager → Admin (Valid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin promoted manager to admin (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('admin');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_washer_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_washer_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✓ Demote Admin → Manager (Valid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin demoted admin to manager (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('manager');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_washer_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_washer_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✓ Demote Manager → Washer (Valid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin demoted manager to washer (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('washer');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"washer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_washer_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_washer_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✓ Demote Washer → Client (Valid Transition)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Admin demoted washer to client (200)\", function() {",
+									"    pm.response.to.have.status(200);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('client');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"client\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_washer_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_washer_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✗ Invalid Transition - Client → Manager (Skip Washer)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot skip washer role (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.detail).to.include('Cannot transition');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_manager_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_manager_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✗ Invalid Transition - Client → Admin (Skip Multiple)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot skip multiple roles (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.detail).to.include('Cannot transition');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_admin_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_admin_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Admin ✗ Invalid Transition - Admin → Client (Skip Levels)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Cannot demote admin directly to client (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.detail).to.include('Cannot transition');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"client\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{admin_user_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{admin_user_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Manager ✗ Cannot Promote - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Manager cannot promote users (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{manager_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"washer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_manager_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_manager_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Washer ✗ Cannot Promote - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Washer cannot promote users (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{washer_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_manager_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_manager_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Client ✗ Cannot Promote - Forbidden (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Client cannot promote users (403)\", function() {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"washer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_manager_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_manager_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Update Role - Invalid Role Value",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid role rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"superadmin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{client_for_manager_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{client_for_manager_id}}", "role"]
+						}
+					}
+				},
+				{
+					"name": "Update Role - Nonexistent User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Nonexistent user returns 404\", function() {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/00000000-0000-0000-0000-000000000000/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "00000000-0000-0000-0000-000000000000", "role"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Additional Security Tests",
+			"item": [
+				{
+					"name": "Login - Brute Force (Multiple Failed Attempts)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Failed login returns 401\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"WrongPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Access Protected Route - No Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"No token returns 401\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Access Protected Route - Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid token returns 401\", function() {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer invalid_token_12345"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Register - Weak Password",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set('weak_test_email', `weakpass${Date.now()}@example.com`);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Weak password rejected (422)\", function() {",
+									"    pm.response.to.have.status(422);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{weak_test_email}}\",\n  \"password\": \"weak\",\n  \"first_name\": \"Weak\",\n  \"last_name\": \"Password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile - SQL Injection Attempt",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"SQL injection blocked (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"'; DROP TABLE users; --\",\n  \"last_name\": \"Injection\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Change Password - Same as Current",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Same password rejected (400)\", function() {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{client_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"current_password\": \"ClientPass123!\",\n  \"new_password\": \"ClientPass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/password/change",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "password", "change"]
+						}
+					}
+				},
+				{
+					"name": "Delete User - Self Deletion Blocked",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Self deletion blocked (400/403)\", function() {",
+									"    pm.response.to.be.oneOf([400, 403]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{admin_user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{admin_user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Role - Invalid Role",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Invalid role rejected (400/422)\", function() {",
+									"    pm.response.to.be.oneOf([400, 422]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"super_admin_hacker\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/users/{{new_user_id}}/role",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "users", "{{new_user_id}}", "role"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,7 +1,7 @@
 """Walk-in domain entities."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict
 
@@ -16,11 +16,13 @@ class WalkInServiceItem:
     Represents a single service performed with pricing and cost tracking.
     """
 
-    service_id: str
-    service_name: str
-    price: Decimal
+    id: Optional[str] = None
+    service_id: str = ""
+    service_name: str = ""
+    price: Decimal = Decimal("0.00")
     quantity: int = 1
     subtotal: Decimal = Decimal("0.00")
+    notes: Optional[str] = None
 
     # Cost tracking for profit calculation
     product_costs: Decimal = Decimal("0.00")
@@ -58,21 +60,28 @@ class WalkInService:
     services: List[WalkInServiceItem] = field(default_factory=list)
     total_amount: Decimal = Decimal("0.00")
     discount_amount: Decimal = Decimal("0.00")
+    discount_reason: Optional[str] = None
     final_amount: Decimal = Decimal("0.00")
+    paid_amount: Decimal = Decimal("0.00")
 
     # Staff and facility
     performed_by_staff_id: str = None
     wash_bay_id: Optional[str] = None
+    created_by_id: Optional[str] = None
+    completed_by_id: Optional[str] = None
+    cancelled_by_id: Optional[str] = None
 
     # Timing
     started_at: datetime = None
     completed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
     duration_minutes: int = 0
 
     # Payment
     payment_status: PaymentStatus = PaymentStatus.PENDING
     payment_method: Optional[PaymentMethod] = None
     payment_date: Optional[datetime] = None
+    payment_details: Optional[str] = None
 
     # Customer (optional)
     customer_name: Optional[str] = None
@@ -80,6 +89,7 @@ class WalkInService:
 
     status: WalkInStatus = WalkInStatus.IN_PROGRESS
     notes: Optional[str] = None
+    cancellation_reason: Optional[str] = None
 
     # Timestamps
     created_at: Optional[datetime] = None
@@ -88,7 +98,7 @@ class WalkInService:
     def __post_init__(self):
         """Initialize calculated fields."""
         if self.started_at is None:
-            self.started_at = datetime.now()
+            self.started_at = datetime.now(timezone.utc)
         if self.total_amount == Decimal("0.00") and self.services:
             self.calculate_total()
 
@@ -188,7 +198,7 @@ class WalkInService:
         """
         self.payment_status = PaymentStatus.PAID
         self.payment_method = payment_method
-        self.payment_date = datetime.now()
+        self.payment_date = datetime.now(timezone.utc)
 
     def complete_service(self) -> None:
         """Complete the service and calculate duration."""
@@ -196,7 +206,7 @@ class WalkInService:
             raise ValueError("Service is already completed")
 
         self.status = WalkInStatus.COMPLETED
-        self.completed_at = datetime.now()
+        self.completed_at = datetime.now(timezone.utc)
 
         if self.started_at:
             delta = self.completed_at - self.started_at
